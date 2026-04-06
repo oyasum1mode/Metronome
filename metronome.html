@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metronome Pro</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0c;--sf:#141418;--s2:#1a1a20;--bd:#222228;--tx:#e8e6e1;--dm:#6b6a66;--mt:#444440;
+--ac:#f05e23;--ag:rgba(240,94,35,.25);--as:rgba(240,94,35,.08);
+--ba:#f05e23;--bi:#2a2a30;--bac:#ff7a45;
+--ci:#a78bfa;--cig:rgba(167,139,250,.3);--ec:#34d399;--ecg:rgba(52,211,153,.3);
+--red:#ef4444;--endc:#f59e0b;--endg:rgba(245,158,11,.3)}
+[data-theme="light"]{--bg:#f5f4f0;--sf:#ffffff;--s2:#efefeb;--bd:#dddbd6;--tx:#1a1a18;--dm:#8a8880;--mt:#b0aea8;--bi:#e8e6e0}
+body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:8px 0 32px}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 600px 400px at 50% 30%,rgba(240,94,35,.03)0%,transparent 70%);pointer-events:none}
+.app{width:100%;max-width:480px;padding:8px}
+.hd{text-align:center;margin-bottom:8px;position:relative}
+.hd h1{font-family:'Instrument Serif',serif;font-size:20px;font-weight:400}
+.hd .sub{font-size:8px;color:var(--dm);letter-spacing:.3em;text-transform:uppercase;margin-top:1px}
+.theme-btn{position:absolute;right:8px;top:8px;background:none;border:1px solid var(--bd);border-radius:50%;width:28px;height:28px;color:var(--dm);font-size:13px;cursor:pointer}
+.tabs{display:flex;gap:2px;margin-bottom:10px;background:var(--sf);border-radius:6px;padding:2px}
+.tb{flex:1;padding:5px 2px;border:none;background:transparent;color:var(--dm);font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.02em;text-transform:uppercase;cursor:pointer;border-radius:4px;transition:all .15s;white-space:nowrap;touch-action:manipulation}
+.tb.active{background:var(--as);color:var(--ac);border:1px solid rgba(240,94,35,.2)}
+.tc{display:none}.tc.active{display:block}
+.bv{font-family:'Instrument Serif',serif;font-size:60px;font-weight:400;line-height:1;text-align:center;transition:color .08s}
+.bv.f1{color:var(--ac)}.bv.f2{color:var(--ci)}.bv.f3{color:var(--ec)}.bv.f4{color:var(--endc)}
+.bs{font-size:10px;color:var(--dm);letter-spacing:.2em;text-transform:uppercase;text-align:center;margin-top:2px}
+.tn{font-family:'Instrument Serif',serif;font-style:italic;font-size:13px;color:var(--dm);text-align:center;margin-top:3px;min-height:16px}
+.stb{text-align:center;margin-bottom:4px;min-height:14px}
+.stb span{font-family:'Instrument Serif',serif;font-size:13px;color:var(--dm);font-style:italic}
+.sb{text-align:center;margin-bottom:8px;min-height:20px}
+.tg{display:inline-block;padding:2px 10px;border-radius:10px;font-size:10px;letter-spacing:.06em}
+.tg-n{background:var(--as);border:1px solid rgba(240,94,35,.2);color:var(--ac)}
+.tg-ci{background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:var(--ci)}
+.tg-ec{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:var(--ec)}
+.tg-end{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--endc)}
+.tg-off{opacity:.4}
+.mc{font-size:9px;color:var(--dm);margin-top:2px}
+.dots{display:flex;justify-content:center;gap:8px;margin-bottom:10px;min-height:32px;align-items:center;flex-wrap:wrap}
+.dot{width:20px;height:20px;border-radius:50%;background:var(--bi);transition:all .05s}
+.dot.on{background:var(--ba);box-shadow:0 0 10px var(--ag);transform:scale(1.3)}
+.dot.acc{border:1.5px solid var(--dm)}.dot.acc.on{background:var(--bac);border-color:var(--bac)}
+.dot.ci{background:var(--ci);box-shadow:0 0 10px var(--cig);transform:scale(1.3)}
+.dot.ec{background:var(--ec);box-shadow:0 0 10px var(--ecg);transform:scale(1.3)}
+.dot.ed{background:var(--endc);box-shadow:0 0 10px var(--endg);transform:scale(1.3)}
+.sw{margin-bottom:8px;padding:0 4px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--bd);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--ac);cursor:pointer;box-shadow:0 0 6px var(--ag)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--ac);cursor:pointer;border:none}
+.sll{display:flex;justify-content:space-between;margin-top:3px;font-size:9px;color:var(--dm)}
+.fine{display:flex;justify-content:center;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.fb{height:30px;padding:0 9px;border-radius:15px;border:1px solid var(--bd);background:var(--sf);color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;user-select:none;touch-action:manipulation}
+.fb:hover{border-color:var(--ac);color:var(--ac)}.fb:active{transform:scale(.93)}
+.tsw{margin-bottom:8px;text-align:center}
+.tsl{font-size:9px;color:var(--dm);letter-spacing:.15em;text-transform:uppercase;margin-bottom:3px}
+.tsv{font-family:'Instrument Serif',serif;font-size:20px;margin-bottom:3px}
+.orow{display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.tgg{display:flex;align-items:center;gap:7px}
+.tgl{font-size:10px;color:var(--dm);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.tw{width:42px;height:24px;border-radius:12px;background:var(--bd);cursor:pointer;position:relative;transition:background .2s;border:none;flex-shrink:0}
+.tw.on{background:var(--ac)}.tw.og{background:var(--ec)}
+.tw::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:var(--tx);top:4px;left:4px;transition:transform .2s}
+.tw.on::after,.tw.og::after{transform:translateX(18px)}
+.sg{display:flex;gap:4px}
+.so{padding:7px 14px;border-radius:5px;border:1px solid var(--bd);background:transparent;color:var(--dm);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all .1s}
+.so.ap{border-color:var(--ci);color:var(--ci);background:rgba(167,139,250,.08)}
+.so.ag{border-color:var(--ec);color:var(--ec);background:rgba(52,211,153,.08)}
+.rrow{display:flex;justify-content:center;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.rl{font-size:8px;color:var(--dm);letter-spacing:.08em;text-transform:uppercase}
+.rs{background:var(--sf);border:1px solid var(--bd);border-radius:4px;padding:3px 6px;color:var(--tx);font-family:'DM Mono',monospace;font-size:10px;outline:none;-webkit-appearance:none;appearance:none;cursor:pointer;min-width:50px;text-align:center}
+.rs:focus{border-color:var(--ac)}
+.ra{color:var(--dm);font-size:11px}
+.pw{display:flex;justify-content:center;margin-bottom:8px}
+.pb{width:64px;height:64px;border-radius:50%;border:2px solid var(--ac);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;position:relative;touch-action:manipulation}
+.pb:hover{background:var(--as);box-shadow:0 0 16px var(--ag)}
+.pb:active{transform:scale(.94)}.pb.on{background:var(--ac)}
+.pi{width:18px;height:18px}
+.pb .tri{fill:var(--ac)}.pb.on .tri{fill:var(--bg)}
+.pb .bar{fill:var(--ac)}.pb.on .bar{fill:var(--bg)}
+.pr{position:absolute;inset:-5px;border-radius:50%;border:1px solid var(--ac);opacity:0;pointer-events:none}
+.pr.pulse{animation:po .3s ease-out}
+@keyframes po{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.4);opacity:0}}
+.tapw{text-align:center;margin-top:4px}
+.tapb{padding:4px 14px;border-radius:12px;border:1px solid var(--bd);background:transparent;color:var(--dm);font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .12s}
+.tapb:hover{border-color:var(--dm);color:var(--tx)}.tapb:active{transform:scale(.95);border-color:var(--ac);color:var(--ac)}
+/* Song edit */
+.sh{display:flex;gap:6px;margin-bottom:10px}
+.sti{flex:1;background:var(--sf);border:1px solid var(--bd);border-radius:5px;padding:7px 10px;color:var(--tx);font-family:'Instrument Serif',serif;font-size:16px;outline:none}
+.sti:focus{border-color:var(--ac)}.sti::placeholder{color:var(--mt)}
+.sa{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+.sab{padding:4px 8px;border-radius:4px;border:1px solid var(--bd);background:var(--sf);color:var(--dm);font-family:'DM Mono',monospace;font-size:9px;cursor:pointer;transition:all .12s}
+.sab:hover{border-color:var(--ac);color:var(--ac)}
+.sab.pri{border-color:var(--ac);color:var(--ac);background:var(--as)}
+.sab.danger:hover{border-color:var(--red);color:var(--red)}
+.slist{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+.sc{background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:8px 10px;transition:border-color .15s}
+.sc.playing{border-color:var(--ac);box-shadow:0 0 8px rgba(240,94,35,.08)}
+.sc.is-end{border-left:2px solid var(--endc)}
+.sch{display:flex;align-items:center;gap:5px;margin-bottom:6px}
+.slet{font-family:'Instrument Serif',serif;font-size:17px;color:var(--ac);min-width:28px}
+.slet.el{color:var(--endc)}
+.sni{flex:1;background:var(--s2);border:1px solid var(--bd);border-radius:3px;padding:2px 6px;color:var(--tx);font-family:'DM Mono',monospace;font-size:10px;outline:none}
+.sni:focus{border-color:var(--ac)}
+.smv{display:flex;flex-direction:column;gap:1px}
+.mvb{width:18px;height:14px;border-radius:2px;border:1px solid var(--bd);background:transparent;color:var(--dm);cursor:pointer;font-size:8px;display:flex;align-items:center;justify-content:center;transition:all .1s;padding:0}
+.mvb:hover{border-color:var(--ac);color:var(--ac)}
+.sdel{width:20px;height:20px;border-radius:50%;border:1px solid var(--bd);background:transparent;color:var(--mt);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;transition:all .12s}
+.sdel:hover{border-color:var(--red);color:var(--red)}
+.sfs{display:grid;gap:4px}
+.sfs.f4{grid-template-columns:1fr 1fr 1fr 1fr}
+.sfs.f2{grid-template-columns:1fr 1fr}
+.fg label{display:block;font-size:7px;color:var(--dm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px}
+.fg input,.fg select{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:3px;padding:3px 4px;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;outline:none}
+.fg input:focus,.fg select:focus{border-color:var(--ac)}
+.fg select{-webkit-appearance:none;appearance:none;cursor:pointer}
+.abr{display:flex;gap:4px;margin-bottom:10px}
+.adb{flex:1;padding:8px;border-radius:6px;border:1px dashed var(--bd);background:transparent;color:var(--dm);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;transition:all .12s}
+.adb:hover{border-color:var(--ac);color:var(--ac)}
+.adb.ea{border-color:rgba(245,158,11,.3);color:var(--endc)}.adb.ea:hover{border-color:var(--endc)}
+.sinf{text-align:center;font-size:8px;color:var(--dm);margin-top:8px;line-height:1.5}
+/* Library */
+.ll{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.lc{background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:8px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:all .12s}
+.lc:hover{border-color:var(--ac)}.lc.cur{border-color:var(--ac);background:var(--as)}
+.lci{flex:1;min-width:0}
+.lct{font-family:'Instrument Serif',serif;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lcm{font-size:8px;color:var(--dm);margin-top:2px}
+.lca{display:flex;gap:3px;flex-shrink:0}
+.lib{width:26px;height:26px;border-radius:50%;border:1px solid var(--bd);background:transparent;color:var(--dm);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;transition:all .12s}
+.lib:hover{border-color:var(--ac);color:var(--ac)}.lib.dg:hover{border-color:var(--red);color:var(--red)}
+.le{text-align:center;padding:24px 8px;color:var(--mt);font-size:11px}
+.nsb{width:100%;padding:8px;border-radius:7px;border:1px dashed var(--bd);background:transparent;color:var(--dm);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all .12s;margin-bottom:10px}
+.nsb:hover{border-color:var(--ac);color:var(--ac)}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
+.mo.show{opacity:1;pointer-events:auto}
+.md{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:20px;width:90%;max-width:400px;max-height:80vh;overflow-y:auto}
+.md h3{font-family:'Instrument Serif',serif;font-size:16px;font-weight:400;margin-bottom:10px}
+.mdt{font-size:10px;color:var(--dm);margin-bottom:8px;line-height:1.5}
+.md textarea{width:100%;height:90px;background:var(--s2);border:1px solid var(--bd);border-radius:5px;padding:7px;color:var(--tx);font-family:'DM Mono',monospace;font-size:8px;outline:none;resize:vertical;word-break:break-all}
+.md textarea:focus{border-color:var(--ac)}
+.mdb{display:flex;gap:6px;margin-top:10px;justify-content:flex-end}
+.mb{padding:6px 14px;border-radius:5px;border:1px solid var(--bd);background:transparent;color:var(--dm);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;transition:all .12s}
+.mb:hover{border-color:var(--dm);color:var(--tx)}.mb.pri{border-color:var(--ac);color:var(--ac);background:var(--as)}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--ac);color:var(--bg);padding:6px 16px;border-radius:16px;font-size:10px;font-family:'DM Mono',monospace;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
+.toast.show{opacity:1}
+.aff-footer{margin-top:20px;padding:12px 8px;border-top:1px solid var(--bd);text-align:center}
+.aff-label{font-size:9px;color:var(--dm);letter-spacing:.15em;margin-bottom:8px}
+.aff-links{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.aff-note{font-size:8px;color:var(--mt);margin-top:8px}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hd"><h1>Metronome</h1><div class="sub">precision timing</div><button id="themeBtn" class="theme-btn" aria-label="テーマ切替"></button></div>
+  <div class="tabs">
+    <button class="tb active" data-t="metro">テンポ</button>
+    <button class="tb" data-t="perf">パフォーマンス</button>
+    <button class="tb" data-t="song">曲編集</button>
+    <button class="tb" data-t="lib">ライブラリ</button>
+  </div>
+
+  <!-- TEMPO (独立メトロノーム) -->
+  <div class="tc active" id="tab-metro">
+    <div class="bv" id="mBv">120</div><div class="bs">bpm</div><div class="tn" id="mTn">Allegro</div>
+    <div style="height:10px"></div>
+    <div class="sw"><input type="range" id="mSl" min="20" max="400" value="120"><div class="sll"><span>20</span><span>400</span></div></div>
+    <div class="fine">
+      <button class="fb" data-d="-10">−10</button><button class="fb" data-d="-5">−5</button><button class="fb" data-d="-1">−1</button>
+      <button class="fb" data-d="1">+1</button><button class="fb" data-d="5">+5</button><button class="fb" data-d="10">+10</button>
+    </div>
+    <div class="tsw"><div class="tsl">拍子</div><div class="tsv" id="mTs">4/4</div><input type="range" id="mTsSl" min="1" max="8" value="4" style="max-width:200px"></div>
+    <div class="dots" id="mDt"></div>
+    <div class="pw"><button class="pb" id="mPb"><div class="pr" id="mPr"></div><svg class="pi" id="mPi" viewBox="0 0 24 24"><polygon class="tri" points="8,5 20,12 8,19"/></svg></button></div>
+    <div class="tapw"><button class="tapb" id="tapB">Tap Tempo</button></div>
+  </div>
+
+  <!-- PERFORMANCE (曲連動) -->
+  <div class="tc" id="tab-perf">
+    <div class="stb" id="pST"></div>
+    <div class="bv" id="pBv">120</div><div class="bs">bpm</div><div class="tn" id="pTn">Allegro</div>
+    <div class="sb" id="pSB"></div>
+    <div class="dots" id="pDt"></div>
+    <div class="orow">
+      <div class="tgg"><span class="tgl">Tap Off</span><button class="tw" id="ciT"></button></div>
+      <div class="sg" id="ciS"><button class="so ap" data-v="4">4</button><button class="so" data-v="8">8</button></div>
+    </div>
+    <div class="orow">
+      <div class="tgg"><span class="tgl">End Check</span><button class="tw" id="ecT"></button></div>
+      <div class="sg" id="ecBS"><button class="so ag" data-v="4">4拍</button><button class="so" data-v="8">8拍</button></div>
+      <div class="sg" id="ecTS"><button class="so ag" data-v="before">前テンポ</button><button class="so" data-v="after">後テンポ</button></div>
+    </div>
+    <div class="rrow" id="rR">
+      <span class="rl">範囲</span><select class="rs" id="rF"></select><span class="ra">→</span><select class="rs" id="rT"></select>
+    </div>
+    <div class="pw"><button class="pb" id="pPb"><div class="pr" id="pPr"></div><svg class="pi" id="pPi" viewBox="0 0 24 24"><polygon class="tri" points="8,5 20,12 8,19"/></svg></button></div>
+  </div>
+
+  <!-- SONG EDIT -->
+  <div class="tc" id="tab-song">
+    <div class="sh"><input class="sti" id="sT" type="text" placeholder="曲名を入力…"></div>
+    <div class="sa">
+      <button class="sab pri" id="svL">💾 保存</button>
+      <button class="sab" id="exB">↗ エクスポート</button>
+      <button class="sab" id="imB">↙ インポート</button>
+      <button class="sab danger" id="clB">✕ クリア</button>
+    </div>
+    <div class="slist" id="sList"></div>
+    <div class="abr">
+      <button class="adb" id="addS">+ セクション</button>
+      <button class="adb ea" id="addE">+ エンド</button>
+    </div>
+    <div class="sinf">↑↓でセクション順を変更可能<br>エンド：曲の最後（頭1拍のみ）</div>
+  </div>
+
+  <!-- LIBRARY -->
+  <div class="tc" id="tab-lib">
+    <button class="nsb" id="newS">+ 新しい曲を作成</button>
+    <div class="ll" id="lList"></div>
+  </div>
+  <div class="aff-footer">
+    <div class="aff-label">PR</div>
+    <div class="aff-links">
+      <!-- ここにアフィリエイトリンク・バナーを挿入 -->
+    </div>
+    <div class="aff-note">広告を含みます</div>
+  </div>
+</div>
+
+<div class="mo" id="exM"><div class="md"><h3>エクスポート</h3><div class="mdt">コードをコピーして共有</div><textarea id="exA" readonly></textarea><div class="mdb"><button class="mb" id="exCl">閉じる</button><button class="mb pri" id="exCp">コピー</button></div></div></div>
+<div class="mo" id="imM"><div class="md"><h3>インポート</h3><div class="mdt">コードを貼り付け</div><textarea id="imA" placeholder="ここに貼り付け…"></textarea><div class="mdb"><button class="mb" id="imCl">閉じる</button><button class="mb pri" id="imLd">読み込み</button></div></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+(function(){
+  const t=localStorage.getItem('metro-theme')||'dark';
+  document.documentElement.dataset.theme=t;
+  $('themeBtn').textContent=t==='dark'?'☀':'🌙';
+  $('themeBtn').addEventListener('click',()=>{
+    const next=document.documentElement.dataset.theme==='dark'?'light':'dark';
+    document.documentElement.dataset.theme=next;
+    localStorage.setItem('metro-theme',next);
+    $('themeBtn').textContent=next==='dark'?'☀':'🌙';
+  });
+})();
+
+// ═══ AUDIO ═══
+let actx=null;
+function ea(){if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();return actx}
+function ck(t){
+  const c=ea(),now=c.currentTime;
+  // tone
+  const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);
+  // noise transient (sharp click)
+  const blen=Math.ceil(c.sampleRate*.004),buf=c.createBuffer(1,blen,c.sampleRate),bd=buf.getChannelData(0);
+  for(let i=0;i<blen;i++)bd[i]=(Math.random()*2-1);
+  const ns=c.createBufferSource(),ng=c.createGain();ns.buffer=buf;ns.connect(ng);ng.connect(c.destination);
+  if(t==='accent'){
+    o.frequency.value=1500;g.gain.setValueAtTime(.8,now);g.gain.exponentialRampToValueAtTime(.001,now+.04);
+    ng.gain.setValueAtTime(.6,now);ng.gain.exponentialRampToValueAtTime(.001,now+.005);
+  }else if(t==='ci'){
+    o.frequency.value=1200;g.gain.setValueAtTime(.6,now);g.gain.exponentialRampToValueAtTime(.001,now+.035);
+    ng.gain.setValueAtTime(.4,now);ng.gain.exponentialRampToValueAtTime(.001,now+.004);
+  }else{
+    o.frequency.value=900;g.gain.setValueAtTime(.5,now);g.gain.exponentialRampToValueAtTime(.001,now+.035);
+    ng.gain.setValueAtTime(.3,now);ng.gain.exponentialRampToValueAtTime(.001,now+.003);
+  }
+  o.start(now);o.stop(now+.05);ns.start(now);ns.stop(now+.01);
+}
+
+// ═══ LABEL GENERATOR A..Z, AA..AZ, BA..ZZ ═══
+function secLabel(n){
+  if(n<26)return String.fromCharCode(65+n);
+  return String.fromCharCode(65+Math.floor(n/26)-1)+String.fromCharCode(65+(n%26));
+}
+function assignLabels(){
+  let mi=0;
+  secs.forEach(s=>{if(s.type==='end')s.label='End';else{s.label=secLabel(mi);mi++}});
+}
+
+function tN(b){if(b<40)return'Grave';if(b<55)return'Largo';if(b<66)return'Larghetto';if(b<76)return'Adagio';if(b<92)return'Andante';if(b<108)return'Moderato';if(b<120)return'Allegretto';if(b<156)return'Allegro';if(b<176)return'Vivace';if(b<200)return'Presto';return'Prestissimo'}
+
+// ════════════════════════════════════
+//  INDEPENDENT METRONOME (テンポ tab)
+// ════════════════════════════════════
+let mBpm=120,mBeats=4,mBt=0,mPlaying=false,mTid=null;
+
+function mUpd(){$('mBv').textContent=mBpm;$('mTn').textContent=tN(mBpm);$('mSl').value=mBpm;$('mTs').textContent=mBeats===1?'1':mBeats+'/4';$('mTsSl').value=mBeats}
+function mSetBpm(v){mBpm=Math.max(20,Math.min(400,v));mUpd();if(mPlaying){clearInterval(mTid);mTid=setInterval(mTick,60000/mBpm)}}
+function mDots(){const el=$('mDt');el.innerHTML='';for(let i=0;i<mBeats;i++){const d=document.createElement('div');d.className='dot';if(mBeats>1&&i===0)d.classList.add('acc');el.appendChild(d)}}
+function mTick(){
+  const a=(mBeats===1)||mBt===0;ck(a?'accent':'normal');
+  const ds=$('mDt').querySelectorAll('.dot');ds.forEach(d=>{d.classList.remove('on');});
+  if(ds[mBt])ds[mBt].classList.add('on');
+  $('mBv').classList.add('f1');setTimeout(()=>$('mBv').classList.remove('f1'),80);
+  $('mPr').classList.remove('pulse');void $('mPr').offsetWidth;$('mPr').classList.add('pulse');
+  mBt=(mBt+1)%mBeats;
+}
+function mStart(){if(mPlaying)return;if(pPlaying)pStop();mPlaying=true;mBt=0;$('mPb').classList.add('on');$('mPi').innerHTML='<rect class="bar" x="6" y="5" width="4" height="14" rx="1"/><rect class="bar" x="14" y="5" width="4" height="14" rx="1"/>';mTick();mTid=setInterval(mTick,60000/mBpm)}
+function mStop(){mPlaying=false;clearInterval(mTid);mTid=null;$('mPb').classList.remove('on');$('mPi').innerHTML='<polygon class="tri" points="8,5 20,12 8,19"/>';$('mDt').querySelectorAll('.dot').forEach(d=>d.classList.remove('on'));$('mBv').className='bv'}
+
+$('mPb').addEventListener('click',()=>{mPlaying?mStop():mStart()});
+$('mSl').addEventListener('input',e=>mSetBpm(parseInt(e.target.value)));
+document.querySelectorAll('#tab-metro .fb').forEach(b=>{b.addEventListener('click',()=>mSetBpm(mBpm+parseInt(b.dataset.d)))});
+$('mTsSl').addEventListener('input',e=>{mBeats=parseInt(e.target.value);mBt=0;mUpd();mDots();if(mPlaying){clearInterval(mTid);mTid=setInterval(mTick,60000/mBpm)}});
+
+let tapT=[];
+$('tapB').addEventListener('click',()=>{const n=performance.now();tapT.push(n);if(tapT.length>6)tapT.shift();if(tapT.length>=2){if(tapT[tapT.length-1]-tapT[tapT.length-2]>3000){tapT=[n];return}const iv=[];for(let i=1;i<tapT.length;i++){const d=tapT[i]-tapT[i-1];if(d<3000)iv.push(d)}if(iv.length>0)mSetBpm(Math.round(60000/(iv.reduce((a,b)=>a+b,0)/iv.length)))}});
+
+// ════════════════════════════════════
+//  PERFORMANCE METRONOME (曲連動)
+// ════════════════════════════════════
+let pBpm=120,pBeats=4,pBt=0,pPlaying=false,pTid=null;
+let ciOn=false,ciBts=4,isCi=false,ciBt=0;
+let ecOn=false,ecBts=4,ecBef=true,isEc=false,ecBt=0;
+let sTitle='',secs=[],curS=-1,curM=0;
+let rF=0,rT=0;
+let lib=[],curSId=null;
+let lastTmp=120,lastBts=4;
+
+function pUpd(){$('pBv').textContent=pBpm;$('pTn').textContent=tN(pBpm)}
+function pDots(n){const el=$('pDt');el.innerHTML='';for(let i=0;i<n;i++){const d=document.createElement('div');d.className='dot';if(n>1&&i===0)d.classList.add('acc');el.appendChild(d)}}
+function pFlash(c){$('pBv').classList.add(c);setTimeout(()=>$('pBv').classList.remove(c),80);$('pPr').classList.remove('pulse');void $('pPr').offsetWidth;$('pPr').classList.add('pulse')}
+function pSetPlay(){$('pPb').classList.add('on');$('pPi').innerHTML='<rect class="bar" x="6" y="5" width="4" height="14" rx="1"/><rect class="bar" x="14" y="5" width="4" height="14" rx="1"/>'}
+function pSetStop(){$('pPb').classList.remove('on');$('pPi').innerHTML='<polygon class="tri" points="8,5 20,12 8,19"/>'}
+
+function upSTB(){$('pST').innerHTML=sTitle?`<span>${sTitle}</span>`:''}
+function upSB(){
+  const sb=$('pSB');
+  if(isCi){sb.innerHTML=`<span class="tg tg-ci">Count-in ${ciBt}/${ciBts}</span>`;return}
+  if(isEc){sb.innerHTML=`<span class="tg tg-ec">End Check ${ecBt}/${ecBts}</span>`;return}
+  if(secs.length===0){sb.innerHTML='';return}
+  if(curS>=0&&curS<secs.length){
+    const s=secs[curS];
+    if(s.type==='end'){sb.innerHTML=`<span class="tg tg-end">End</span>`;return}
+    const nm=s.name?` — ${s.name}`:'';
+    sb.innerHTML=`<span class="tg tg-n">${s.label}${nm}</span><div class="mc">小節 ${curM+1}${s.measures>0?' / '+s.measures:' (手動)'}</div>`;
+  }else if(secs.length>0){
+    sb.innerHTML=`<span class="tg tg-off">${secs[rF]?.label||''} → ${secs[rT]?.label||''}</span>`;
+  }else sb.innerHTML='';
+}
+function upRange(){
+  const rf=$('rF'),rt=$('rT');rf.innerHTML='';rt.innerHTML='';
+  secs.forEach((s,i)=>{const l=s.label+(s.name?' '+s.name:'');rf.innerHTML+=`<option value="${i}">${l}</option>`;rt.innerHTML+=`<option value="${i}">${l}</option>`});
+  if(secs.length>0){rF=Math.min(rF,secs.length-1);rT=Math.max(rF,Math.min(rT,secs.length-1));rf.value=rF;rt.value=rT}
+}
+function updateAll(){pUpd();upSTB();upSB();upRange();renderSL();renderLL()}
+
+// ── setTimeout-based scheduler for rock-solid tempo ──
+// Each beat is scheduled with setTimeout at the CURRENT section's tempo.
+// When a section ends, the NEXT setTimeout uses the NEW tempo.
+// This ensures the last beat of a section always has the correct interval.
+
+function clearPTid(){if(pTid){clearTimeout(pTid);pTid=null}}
+
+// COUNT-IN
+function runCi(cb){
+  isCi=true;ciBt=0;pDots(ciBts);upSB();
+  function t(){
+    if(ciBt>=ciBts){isCi=false;cb();return}
+    ck('ci');
+    const ds=$('pDt').querySelectorAll('.dot');ds.forEach(d=>d.className=d.classList.contains('acc')?'dot acc':'dot');
+    if(ds[ciBt])ds[ciBt].classList.add('ci');
+    pFlash('f2');ciBt++;upSB();
+    pTid=setTimeout(t,60000/pBpm);
+  }
+  t();
+}
+
+// END CHECK
+function runEc(){
+  isEc=true;ecBt=0;
+  let eTmp;
+  if(ecBef){
+    eTmp=lastTmp;
+  }else{
+    // 後テンポ = rT自身のテンポ（ECはrTの代わりに鳴る）
+    eTmp=(secs[rT]&&secs[rT].type!=='end')?secs[rT].tempo:lastTmp;
+  }
+  pBpm=Math.max(20,Math.min(400,eTmp));
+  pUpd();pDots(ecBts);upSB();
+  // Wait one beat at lastTmp before first EC beat (gap)
+  pTid=setTimeout(function t(){
+    if(ecBt>=ecBts){isEc=false;pStop();return}
+    ck('ci');
+    const ds=$('pDt').querySelectorAll('.dot');ds.forEach(d=>d.className='dot');
+    if(ds[ecBt])ds[ecBt].classList.add('ec');
+    pFlash('f3');ecBt++;upSB();
+    pTid=setTimeout(t,60000/pBpm);
+  },60000/lastTmp);
+}
+
+// MAIN PERFORMANCE TICK
+function pTick(){
+  const s=curS>=0&&curS<secs.length?secs[curS]:null;
+
+  if(s&&s.type==='end'){
+    // End: play 1 accent beat, then EC or stop
+    ck('accent');
+    const ds=$('pDt').querySelectorAll('.dot');ds.forEach(d=>d.className='dot');
+    if(ds[0])ds[0].classList.add('ed');
+    pFlash('f4');
+    lastTmp=pBpm;lastBts=pBeats;
+    if(ecOn){runEc()}else pStop();
+    return;
+  }
+
+  const acc=(pBeats===1)||pBt===0;
+  ck(acc?'accent':'normal');
+  const ds=$('pDt').querySelectorAll('.dot');ds.forEach(d=>d.className=d.classList.contains('acc')?'dot acc':'dot');
+  if(ds[pBt])ds[pBt].classList.add('on');
+  pFlash('f1');
+
+  pBt++;
+  if(pBt>=pBeats){
+    pBt=0;
+    if(curS>=0&&curS<secs.length){
+      const sec=secs[curS];
+      curM++;
+      if(sec.measures>0&&curM>=sec.measures){
+        // Section done
+        lastTmp=sec.tempo;lastBts=sec.timeSig;
+
+        if(curS>=rT){
+          // Reached end of range
+          if(ecOn){runEc()}else pStop();
+          return;
+        }
+
+        // EC at rangeTo boundary
+        if(ecOn&&curS+1===rT&&rT>rF){
+          runEc();
+          return;
+        }
+
+        // Advance: schedule next beat at CURRENT tempo, then switch
+        // The current beat was the last of this section — wait one beat at current tempo
+        const curTempo=pBpm;
+        pTid=setTimeout(()=>{
+          // Now apply next section
+          curS++;
+          const ns=secs[curS];
+          pBpm=Math.max(20,Math.min(400,ns.tempo));pBeats=ns.timeSig||4;
+          pBt=0;curM=0;
+          pUpd();pDots(pBeats);upSB();renderSL();
+          // First beat of new section at NEW tempo
+          pTick();
+        },60000/curTempo);
+        return;
+      }
+      upSB();
+    }
+  }
+  // Schedule next beat at CURRENT tempo
+  pTid=setTimeout(pTick,60000/pBpm);
+}
+
+function pStart(){
+  if(pPlaying)return;if(mPlaying)mStop();pPlaying=true;pSetPlay();
+  if(secs.length>0){
+    if(ecOn&&rF===rT){
+      curS=rF;const s=secs[rF];pBpm=Math.max(20,Math.min(400,s.tempo));pBeats=s.timeSig||4;
+      lastTmp=pBpm;lastBts=pBeats;pUpd();pDots(pBeats);
+      if(ciOn){runCi(()=>runEc())}else runEc();return;
+    }
+    curS=rF;const s=secs[rF];
+    pBpm=Math.max(20,Math.min(400,s.tempo));pBeats=s.timeSig||4;
+    lastTmp=pBpm;lastBts=pBeats;pUpd();pDots(pBeats);
+  }
+  pBt=0;curM=0;upSB();renderSL();
+  if(ciOn){runCi(()=>{pDots(pBeats);upSB();pTick()})}
+  else pTick();
+}
+
+function pStop(){
+  pPlaying=false;isCi=false;isEc=false;clearPTid();pSetStop();
+  $('pDt').querySelectorAll('.dot').forEach(d=>d.className='dot');
+  $('pBv').className='bv';curS=-1;curM=0;upSB();renderSL();
+}
+
+$('pPb').addEventListener('click',()=>{pPlaying?pStop():pStart()});
+
+$('ciT').addEventListener('click',()=>{ciOn=!ciOn;$('ciT').classList.toggle('on',ciOn)});
+$('ecT').addEventListener('click',()=>{ecOn=!ecOn;const e=$('ecT');e.classList.remove('on','og');if(ecOn)e.classList.add('og')});
+$('ciS').querySelectorAll('.so').forEach(b=>{b.addEventListener('click',()=>{$('ciS').querySelectorAll('.so').forEach(x=>x.classList.remove('ap'));b.classList.add('ap');ciBts=parseInt(b.dataset.v)})});
+$('ecBS').querySelectorAll('.so').forEach(b=>{b.addEventListener('click',()=>{$('ecBS').querySelectorAll('.so').forEach(x=>x.classList.remove('ag'));b.classList.add('ag');ecBts=parseInt(b.dataset.v)})});
+$('ecTS').querySelectorAll('.so').forEach(b=>{b.addEventListener('click',()=>{$('ecTS').querySelectorAll('.so').forEach(x=>x.classList.remove('ag'));b.classList.add('ag');ecBef=b.dataset.v==='before'})});
+$('rF').addEventListener('change',e=>{rF=parseInt(e.target.value);if(rT<rF){rT=rF;$('rT').value=rT}upSB()});
+$('rT').addEventListener('change',e=>{rT=parseInt(e.target.value);if(rF>rT){rF=rT;$('rF').value=rF}upSB()});
+
+// ════════════════════════════════════
+//  SECTIONS UI
+// ════════════════════════════════════
+function renderSL(){
+  $('sList').innerHTML='';
+  secs.forEach((s,i)=>{
+    const c=document.createElement('div');
+    let cls='sc';if(pPlaying&&i===curS)cls+=' playing';if(s.type==='end')cls+=' is-end';
+    c.className=cls;
+    if(s.type==='end'){
+      c.innerHTML=`<div class="sch"><span class="slet el">End</span><input class="sni" type="text" value="${s.name}" placeholder="Ending" data-i="${i}" data-f="name"><button class="sdel" data-i="${i}">×</button></div>
+        <div class="sfs f2"><div class="fg"><label>開始小節</label><input type="number" min="1" max="999" value="${s.startMeasure}" data-i="${i}" data-f="startMeasure"></div><div class="fg"><label>テンポ</label><input type="number" min="20" max="400" value="${s.tempo}" data-i="${i}" data-f="tempo"></div></div>`;
+    }else{
+      const mv=`<div class="smv"><button class="mvb" data-d="up" data-i="${i}">▲</button><button class="mvb" data-d="dn" data-i="${i}">▼</button></div>`;
+      c.innerHTML=`<div class="sch">${mv}<span class="slet">${s.label}</span><input class="sni" type="text" value="${s.name}" placeholder="セクション名" data-i="${i}" data-f="name"><button class="sdel" data-i="${i}">×</button></div>
+        <div class="sfs f4"><div class="fg"><label>開始小節</label><input type="number" min="1" max="999" value="${s.startMeasure}" data-i="${i}" data-f="startMeasure"></div><div class="fg"><label>小節数</label><input type="number" min="0" max="999" value="${s.measures}" data-i="${i}" data-f="measures"></div><div class="fg"><label>テンポ</label><input type="number" min="20" max="400" value="${s.tempo}" data-i="${i}" data-f="tempo"></div><div class="fg"><label>拍子</label><select data-i="${i}" data-f="timeSig">${[1,2,3,4,5,6,7,8].map(t=>`<option value="${t}"${t===s.timeSig?' selected':''}>${t===1?'1':t+'/4'}</option>`).join('')}</select></div></div>`;
+    }
+    $('sList').appendChild(c);
+  });
+  $('sList').querySelectorAll('input,select').forEach(el=>{
+    el.addEventListener('change',e=>{
+      const i=parseInt(e.target.dataset.i),f=e.target.dataset.f;if(isNaN(i))return;
+      if(f==='name')secs[i].name=e.target.value;
+      else if(f==='startMeasure'){secs[i].startMeasure=Math.max(1,parseInt(e.target.value)||1);e.target.value=secs[i].startMeasure}
+      else if(f==='tempo'){secs[i].tempo=Math.max(20,Math.min(400,parseInt(e.target.value)||120));e.target.value=secs[i].tempo}
+      else if(f==='timeSig')secs[i].timeSig=parseInt(e.target.value);
+      else if(f==='measures'){secs[i].measures=Math.max(0,parseInt(e.target.value)||0);e.target.value=secs[i].measures}
+      assignLabels();saveCur();upRange();
+    });
+  });
+  $('sList').querySelectorAll('.sdel').forEach(el=>{
+    el.addEventListener('click',e=>{secs.splice(parseInt(e.currentTarget.dataset.i),1);assignLabels();renderSL();upSB();saveCur();upRange()});
+  });
+  $('sList').querySelectorAll('.mvb').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const i=parseInt(el.dataset.i),d=el.dataset.d;
+      // Prevent moving past end block or moving end block
+      if(secs[i].type==='end')return;
+      if(d==='up'&&i>0&&secs[i-1].type!=='end'){[secs[i-1],secs[i]]=[secs[i],secs[i-1]]}
+      else if(d==='dn'&&i<secs.length-1){
+        // Can't move below end
+        if(secs[i+1].type==='end')return;
+        [secs[i],secs[i+1]]=[secs[i+1],secs[i]];
+      }else return;
+      assignLabels();saveCur();upRange();renderSL();
+    });
+  });
+}
+
+$('addS').addEventListener('click',()=>{
+  const endIdx=secs.findIndex(s=>s.type==='end');
+  const ins=endIdx>=0?endIdx:secs.length;
+  const prev=ins>0?secs[ins-1]:null;
+  const sm=prev?(prev.startMeasure+(prev.measures||4)):1;
+  secs.splice(ins,0,{type:'main',label:'',name:'',startMeasure:sm,measures:4,tempo:mBpm,timeSig:mBeats});
+  assignLabels();renderSL();saveCur();upRange();rT=Math.max(rT,secs.length-1);upRange();
+});
+
+$('addE').addEventListener('click',()=>{
+  if(secs.some(s=>s.type==='end')){toast('エンドは1つのみ');return}
+  const prev=secs.length>0?secs[secs.length-1]:null;
+  const sm=prev?(prev.startMeasure+(prev.measures||4)):1;
+  secs.push({type:'end',label:'End',name:'',startMeasure:sm,measures:1,tempo:mBpm,timeSig:mBeats});
+  assignLabels();renderSL();saveCur();upRange();rT=secs.length-1;upRange();
+});
+
+// ═══ STORAGE ═══
+async function saveLib(){try{await window.storage.set('metro-lib4',JSON.stringify(lib))}catch(e){}}
+async function loadLib(){try{const r=await window.storage.get('metro-lib4');if(r)lib=JSON.parse(r.value)}catch(e){lib=[]}}
+function saveCur(){if(!curSId)return;const i=lib.findIndex(s=>s.id===curSId);if(i>=0){lib[i].title=sTitle;lib[i].sections=JSON.parse(JSON.stringify(secs))}saveLib()}
+function loadSong(s){curSId=s.id;sTitle=s.title;$('sT').value=sTitle;secs=JSON.parse(JSON.stringify(s.sections||[]));assignLabels();curS=-1;curM=0;rF=0;rT=Math.max(0,secs.length-1);updateAll()}
+
+// ═══ LIBRARY UI ═══
+function renderLL(){
+  const l=$('lList');l.innerHTML='';
+  if(lib.length===0){l.innerHTML='<div class="le">曲がありません</div>';return}
+  lib.forEach(s=>{
+    const c=document.createElement('div');c.className='lc'+(s.id===curSId?' cur':'');
+    const mainCount=(s.sections||[]).filter(x=>x.type!=='end').length;
+    c.innerHTML=`<div class="lci"><div class="lct">${s.title||'無題'}</div><div class="lcm">${mainCount} セクション</div></div>
+      <div class="lca"><button class="lib" data-a="exp" data-id="${s.id}">↗</button><button class="lib dg" data-a="del" data-id="${s.id}">×</button></div>`;
+    c.addEventListener('click',e=>{if(e.target.closest('.lib'))return;loadSong(s);switchTab('perf')});
+    l.appendChild(c);
+  });
+  l.querySelectorAll('.lib').forEach(b=>{
+    b.addEventListener('click',e=>{e.stopPropagation();const id=b.dataset.id,a=b.dataset.a;
+      if(a==='del'){if(!confirm('削除？'))return;lib=lib.filter(s=>s.id!==id);if(curSId===id){curSId=null;sTitle='';$('sT').value='';secs=[];updateAll()}saveLib();renderLL()}
+      if(a==='exp'){const s=lib.find(x=>x.id===id);if(s){$('exA').value=enc(s);$('exM').classList.add('show')}}
+    });
+  });
+}
+function switchTab(t){document.querySelectorAll('.tb').forEach(b=>{b.classList.remove('active');if(b.dataset.t===t)b.classList.add('active')});document.querySelectorAll('.tc').forEach(c=>c.classList.remove('active'));$('tab-'+t).classList.add('active');if(t==='song')renderSL();if(t==='lib')renderLL()}
+
+$('newS').addEventListener('click',()=>{saveCur();const id='s'+Date.now();const s={id,title:'',sections:[]};lib.push(s);saveLib();loadSong(s);switchTab('song')});
+$('svL').addEventListener('click',()=>{
+  sTitle=$('sT').value;
+  if(!curSId){curSId='s'+Date.now();lib.push({id:curSId,title:sTitle,sections:JSON.parse(JSON.stringify(secs))})}
+  else{const i=lib.findIndex(s=>s.id===curSId);if(i>=0){lib[i].title=sTitle;lib[i].sections=JSON.parse(JSON.stringify(secs))}else lib.push({id:curSId,title:sTitle,sections:JSON.parse(JSON.stringify(secs))})}
+  saveLib();toast('保存しました');renderLL();
+});
+
+// ═══ EXPORT/IMPORT ═══
+function enc(s){return btoa(unescape(encodeURIComponent(JSON.stringify({v:4,title:s.title||'',sections:(s.sections||[]).map(x=>({tp:x.type,n:x.name,sm:x.startMeasure,m:x.measures,t:x.tempo,ts:x.timeSig}))}))))}
+function dec(c){try{const d=JSON.parse(decodeURIComponent(escape(atob(c.trim()))));if(!d.sections)return null;return{title:d.title||'',sections:d.sections.map(s=>({type:s.tp||'main',label:'',name:s.n||'',startMeasure:s.sm||1,measures:s.m||0,tempo:s.t||120,timeSig:s.ts||4}))}}catch(e){return null}}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500)}
+
+$('exB').addEventListener('click',()=>{sTitle=$('sT').value;saveCur();const s=curSId?lib.find(x=>x.id===curSId):null;$('exA').value=enc(s||{title:sTitle,sections:secs});$('exM').classList.add('show')});
+$('exCl').addEventListener('click',()=>$('exM').classList.remove('show'));
+$('exCp').addEventListener('click',()=>{$('exA').select();navigator.clipboard.writeText($('exA').value).then(()=>toast('コピーしました')).catch(()=>{document.execCommand('copy');toast('コピーしました')})});
+$('imB').addEventListener('click',()=>{$('imA').value='';$('imM').classList.add('show')});
+$('imCl').addEventListener('click',()=>$('imM').classList.remove('show'));
+$('imLd').addEventListener('click',()=>{const d=dec($('imA').value);if(!d){toast('無効なコード');return}saveCur();const id='s'+Date.now();const s={id,title:d.title,sections:d.sections};lib.push(s);saveLib();loadSong(s);$('imM').classList.remove('show');toast('読み込みました')});
+$('clB').addEventListener('click',()=>{if(!confirm('クリア？'))return;sTitle='';$('sT').value='';secs=[];curS=-1;curM=0;updateAll();saveCur()});
+$('sT').addEventListener('input',e=>{sTitle=e.target.value;upSTB()});
+
+// ═══ TAB & KEYBOARD ═══
+document.querySelectorAll('.tb').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.t)));
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA')return;
+  if(e.code==='Space'){e.preventDefault();
+    // Which tab is active?
+    if($('tab-metro').classList.contains('active')){mPlaying?mStop():mStart()}
+    else if($('tab-perf').classList.contains('active')){pPlaying?pStop():pStart()}
+  }
+  if(e.code==='ArrowUp'){e.preventDefault();if($('tab-metro').classList.contains('active'))mSetBpm(mBpm+1)}
+  if(e.code==='ArrowDown'){e.preventDefault();if($('tab-metro').classList.contains('active'))mSetBpm(mBpm-1)}
+});
+
+['exM','imM'].forEach(id=>{$(id).addEventListener('click',e=>{if(e.target===$(id))$(id).classList.remove('show')})});
+
+// ═══ INIT ═══
+(async()=>{await loadLib();mDots();mUpd();pDots(4);pUpd();upSTB();upSB();upRange();renderLL()})();
+</script>
+</body>
+</html>
