@@ -12,12 +12,15 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
 - `metronome.html` — アプリ本体（HTML + CSS + JS）
 - `manifest.json` — PWA マニフェスト
 - `sw.js` — Service Worker（オフライン対応）
+- `icons/icon.svg` — アイコンマスター（ビートドット 4 つ並び、ダーク背景にオレンジドット）
 - `icons/icon-192.png` — PWA アイコン（192×192px）
 - `icons/icon-512.png` — PWA アイコン（512×512px）
 - `icons/apple-touch-icon.png` — iOS Safari ホーム画面アイコン（180×180px）
+- `icon-builder.html` — `icon.svg` から PNG 3 サイズを書き出すローカル変換ツール（公開対象外、開発用）
 
 > `manifest.json`・`sw.js`・`icons/` は PWA 化（Phase 4）で新規追加するファイル。  
-> Service Worker はセキュリティ制約上 HTML に inline できないため別ファイル必須。
+> Service Worker はセキュリティ制約上 HTML に inline できないため別ファイル必須。  
+> PNG アイコンは `icon-builder.html` をブラウザで開いてダウンロードボタンから書き出し、`icons/` に手動配置する運用（ImageMagick 等のインストール不要）。
 
 ---
 
@@ -148,7 +151,7 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
 - `AudioContext.setSinkId()` による出力先プログラム選択は iOS Safari / Chrome 両方で**未サポート**（Apple の制限）
 - lookahead scheduling により、main ビートと sub ビートの**相対タイミングは正確**に保たれる
 - 全音声に均一なオフセットが乗るため、練習用途では実用上問題なし
-- UI に「Bluetooth スピーカー使用時は音が少し遅れる場合があります」旨を添えることを推奨
+- **UI 表示**: ライブラリタブ末尾（「+ 新しい曲を作成」の下）に小さく「Bluetooth スピーカー使用時は音が少し遅れる場合があります（接続側の固定遅延）」と注意書きを表示する
 
 ---
 
@@ -297,7 +300,10 @@ BPM(t) = tempo + (tempoEnd - tempo) * t'
 - **配置**: パフォーマンスタブの BPM 数値の直下に `[ -10 ] [ In tempo ] [ +10 ]` を横並び
 - **状態**: グローバル変数 `tempoOffset`（初期値 0、範囲 -200〜+200）
 - **適用**: `scheduleNext` 内で `currentTempo = clampTempo(tempoAt(sec, progress(...)) + tempoOffset)`
-- **表示**: `In tempo` ボタンに現在値を併記。例: オフセット 0 → `In tempo`、+30 → `In tempo (+30)`、-20 → `In tempo (-20)`
+- **BPM 表示**:
+  - 再生中: `scheduleNext` で `queueVisual({kind:'tempo'})` 経由でオフセット込みの瞬時値を表示（既存ロジック）
+  - 停止中: `pUpd()` で現在選択中セクション（`secs[curS] || secs[rF]`）の `tempo + tempoOffset` を `clampTempo` して表示。曲未読込時は `pBpm` のまま
+- **In tempo ボタン**: 現在値を併記。例: オフセット 0 → `In tempo`、+30 → `In tempo (+30)`、-20 → `In tempo (-20)`
 - **リセットタイミング**: `loadSong` / `newS`（新規曲作成）/ `clB`（クリア）の冒頭で 0 にリセット
 - **保持**: 再生停止 / タブ切替では保持。リロードで 0（localStorage には保存しない）
 - **適用範囲**: パフォーマンスタブのみ。テンポタブ（`createMetroTransport`）には影響させない
@@ -367,6 +373,15 @@ BPM(t) = tempo + (tempoEnd - tempo) * t'
 - **曲編集・ライブラリタブ**: コンテンツが長くなるためスクロール可（既存の `overflow:auto` を維持）
 - ランドスケープ用メディアクエリ（`@media (orientation:landscape) and (max-height:500px)` で `body{overflow:auto}`）は維持
 
+### 曲編集 UI のコンパクト化
+
+accel/rit「⋯ 詳細」トグル追加でセクションカードが縦に伸びがち。モバイルでスクロール量を減らすため、機能を損なわない範囲で軽くチューニング:
+
+- セクションカード内の余白（padding / gap）を必要に応じて縮小
+- 4 列フィールド（開始小節 / 小節数 / テンポ / 拍子）の gap を詰める、ラベル文字サイズを小さく
+- `.sdet summary` の高さを 24〜28px 程度に抑える
+- 過度に詰めて操作性を損なわないこと（タップターゲットは引き続き確保）
+
 ---
 
 ## マスター音量
@@ -417,8 +432,9 @@ BPM(t) = tempo + (tempoEnd - tempo) * t'
 | `icons/icon-512.png` | 512×512px | スプラッシュ画面・Google Play PWA |
 | `icons/apple-touch-icon.png` | 180×180px | iOS Safari「ホーム画面に追加」アイコン |
 
-- フォーマット: PNG（背景色あり推奨、透過なし）
-- デザイン: シンプルなメトロノームまたはビートドットのモチーフ。SVG でマスターを作成し PNG に書き出すこと
+- フォーマット: PNG（背景色あり、透過なし）
+- デザイン: ビートドット 4 つ並び（ダーク背景、オレンジドット）。`icons/icon.svg` をマスターとして保持
+- 書き出し: `icon-builder.html` をブラウザで開き、「ダウンロード」ボタンで 192/512/180 PNG を取得 → `icons/` に配置（ImageMagick 等のインストール不要）
 
 ### Service Worker（sw.js）
 
