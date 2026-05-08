@@ -1,5 +1,5 @@
-const CACHE_NAME='metronome-pro-v6';
-const APP_SHELL=['./','./metronome.html','./manifest.json'];
+const CACHE_NAME='metronome-pro-v7';
+const APP_SHELL=['./','./index.html','./metronome.html','./manifest.json'];
 const FONT_HOSTS=['fonts.googleapis.com','fonts.gstatic.com'];
 
 self.addEventListener('install',event=>{

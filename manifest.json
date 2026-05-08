@@ -1,7 +1,7 @@
 {
   "name": "Metronome Pro",
   "short_name": "Metronome",
-  "start_url": "./",
+  "start_url": "./metronome.html",
   "display": "standalone",
   "background_color": "#0a0a0c",
   "theme_color": "#f05e23",

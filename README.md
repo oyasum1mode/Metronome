@@ -2,6 +2,8 @@
 
 マーチング・吹奏楽向けの高機能メトロノーム Web アプリ。曲ごとにセクション分割してテンポ・拍子を管理し、accel/rit やテンポオフセットで本番に近い練習を支援します。単一 HTML（`metronome.html`）+ PWA で配布、ホーム画面追加にも対応。
 
+**公開 URL**: https://oyasum1mode.github.io/Metronome/
+
 ## 主な機能
 
 - **テンポタブ** — 独立メトロノーム。BPM 20〜400、Tap Tempo、Subdivision（8th/Triplet/16th）
