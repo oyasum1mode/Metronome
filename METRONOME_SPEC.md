@@ -153,16 +153,31 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
 
 ## 音色（Web Audio API）
 
-> 以下の値は実装コードの実測値。旧 SPEC（accent: 1200Hz/0.7、normal: 800Hz/0.4、ci: 1000Hz/0.5）は実装と乖離していたため修正済み。
+BOSS DB-30 系の Click 音（木魚っぽい「コッカッ」）を Web Audio で合成する。サンプル音源は使わない。
 
-| 種類 | オシレーター周波数 | オシレーター音量 | ノイズ音量 | 用途 |
-|------|-----------------|----------------|-----------|------|
-| accent | 1500Hz | 0.8 | 0.6 | 小節頭（1拍子の場合は全拍） |
-| normal | 900Hz | 0.5 | 0.3 | 通常拍 |
-| ci | 1200Hz | 0.6 | 0.4 | Tap Off / End Check |
-| sub | 未定（三角波 or 低周波サイン波推奨） | メインの 40〜50% | 任意 | Subdivision サブビート |
+### ノード構成
 
-音声構成: サイン波オシレーター + ノイズトランジェント（4ms バースト）、約 40〜50ms で減衰。
+```
+NoiseBuffer(50ms) → BiquadFilter(BPF) → Gain(env) ─┐
+                                                    ├→ masterGain → destination
+Oscillator(sine)                      → Gain(env) ─┘
+```
+
+- **ノイズ + バンドパスフィルター**でピッチを作るパーカッシブ成分（Click の主成分）
+- **サイン波（少量）**で芯を加える
+- 各 Gain は超高速アタック（≦1ms）→ exp 減衰でクリック感を出す
+- ノイズバッファは 50ms、`getNoiseBuffer` でキャッシュ再利用
+
+### 音色パラメータ（実装目安）
+
+| 種類 | BPF中心周波数 | Q | ノイズピーク | サインピーク | 減衰 | 用途 |
+|------|------------|---|------------|------------|------|------|
+| accent | 2200 Hz | 12 | 0.9 | 0.25 | 50 ms | 小節頭（1拍子の場合は全拍） |
+| normal | 1100 Hz | 12 | 0.6 | 0.18 | 40 ms | 通常拍 |
+| ci | 1500 Hz | 14 | 0.7 | 0.22 | 45 ms | Tap Off / End Check |
+| sub | 800 Hz | 10 | 0.35 | 0.08 | 25 ms | Subdivision サブビート |
+
+数値は実装後の試聴で調整可。`playClick(type, time, opts)` の `opts` で個別オーバーライドできる現状の作りを維持する。
 
 ---
 
@@ -176,7 +191,11 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
   - End: 黄色 (`--endc`)
 - BPM数値が拍に合わせて色フラッシュ
 - 再生ボタンにパルスリングアニメーション
-- **Subdivision 中のサブビート表示: 小さいドット or 別色（実装時に決定）**
+- **Subdivision 中のサブビート表示**: メインドットの間に補助ドット（subdot）を挿入する
+  - 8th → メインドット間に 1 個 / Triplet → 2 個 / 16th → 3 個 / None → なし
+  - 補助ドットはメインドットより小さく（直径 4〜6px）、色は控えめ（`var(--dm)` など）
+  - サブビート発音時に短くフラッシュ
+  - Count-in / End Check 中はサブビートを鳴らさないため非表示
 
 ---
 
@@ -221,7 +240,7 @@ JSON → Base64エンコード。バージョン: `v:4`
 
 - HTML/CSS/JS（フレームワークなし）
 - Web Audio API（音声生成 + lookahead scheduling）
-- `localStorage`（ライブラリデータの永続化。キー: `metronome-lib`）
+- `localStorage`（永続化。キー: `metronome-lib`=曲ライブラリ、`metronome-volume`=マスター音量）
 - Service Worker（オフラインキャッシュ）
 - Wake Lock API（画面スリープ防止、再生中のみ）
 - Google Fonts: DM Mono, Instrument Serif
@@ -256,8 +275,27 @@ JSON → Base64エンコード。バージョン: `v:4`
 
 - **主要コントロール**（Start/Stop ボタン、BPM 調整、Subdivision トグル）は**画面下半分**に優先配置
 - タップターゲットは最低 **44×44px** を確保
-- 再生ボタン（`.pb`）は現在 64×64px — 維持または拡大
-- ±1/±5/±10 ボタン（`.fb`）は現在 height: 30px — **44px に拡大が必要**
+- 再生ボタン（`.pb`）は 64×64px
+- ±1/±5/±10 ボタン（`.fb`）は **min-width / min-height ともに 44px**（タップターゲット要件を満たす）
+
+### タッチ・スクロール挙動
+
+- **テンポ・パフォーマンスタブ**: 1 画面に収めることが前提のため、iOS Safari/Chrome のバウンス（rubber-band）とプルトゥリフレッシュを抑止する
+  - `html, body { overscroll-behavior: none }`
+  - 当該タブに `touch-action: pan-x pinch-zoom` を付与し、縦スワイプによるスクロールを止める
+  - スライダー（`input[type=range]`）には `touch-action: pan-x` を残し、横操作を確保する
+- **曲編集・ライブラリタブ**: コンテンツが長くなるためスクロール可（既存の `overflow:auto` を維持）
+- ランドスケープ用メディアクエリ（`@media (orientation:landscape) and (max-height:500px)` で `body{overflow:auto}`）は維持
+
+---
+
+## マスター音量
+
+- ヘッダー右側など、画面下半分の主要コントロールを邪魔しない位置にスライダーを設置
+- 範囲: 0.0 〜 1.5 / ステップ: 0.05 / デフォルト: 1.0
+- 永続化: `localStorage` キー `metronome-volume`
+- 既存の `masterGain.gain.value` に書き込む形で実装する（音生成側は全ノードを `masterGain` に集約済み）
+- `input` イベントで即時反映
 
 ---
 
