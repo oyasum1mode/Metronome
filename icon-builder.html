@@ -28,10 +28,16 @@ const SIZES = [
   {size: 180, file: 'apple-touch-icon.png'},
 ];
 
+const SVG_TEXT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#0a0a0c"/>
+  <circle cx="116" cy="256" r="40" fill="#ff7a45"/>
+  <circle cx="208" cy="256" r="40" fill="#f05e23"/>
+  <circle cx="304" cy="256" r="40" fill="#f05e23"/>
+  <circle cx="396" cy="256" r="40" fill="#f05e23"/>
+</svg>`;
+
 async function load(){
-  const res = await fetch('icons/icon.svg');
-  const svgText = await res.text();
-  const svgBlob = new Blob([svgText], {type: 'image/svg+xml'});
+  const svgBlob = new Blob([SVG_TEXT], {type: 'image/svg+xml'});
   const svgUrl = URL.createObjectURL(svgBlob);
 
   const img = new Image();
