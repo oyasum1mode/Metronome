@@ -50,7 +50,8 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
   - 「後テンポ」: rangeToのテンポ（ECはrangeToの代わりに鳴るため）で鳴る
   - rangeToの1拍目からEnd Check音に切り替わる（rangeToのセクション自体は通常再生しない）
   - ただし rF === rT の場合は、そのセクション自体をEC音で置き換え
-- **練習範囲**: 開始セクション → 終了セクション をドロップダウンで選択
+- **練習範囲**: 開始セクション → 終了セクション をドロップダウンで選択。表示は `name (label)` 形式（例: `Intro (A)`）。name が空のセクションは label のみ表示
+- **テンポオフセット**: BPM 表示の直下に `[ -10 ] [ In tempo ] [ +10 ]` ボタンで現曲全セクションのテンポを一括でずらせる（遅練習用）。詳細は「テンポオフセット」節
 - **Subdivision Click**: 後述の仕様に従いトグルボタンで切替可能
 - スペースキーで再生/停止
 
@@ -153,32 +154,33 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
 
 ## 音色（Web Audio API）
 
-BOSS DB-90 の Voice 系を意識した「Pa/Ta」風の掛け声を Web Audio で合成する。サンプル音源は使わない（実機サンプルは著作権上使えないため、フォルマント合成で近づける）。
+BOSS DB-30 系の Click 音（木魚っぽい「コッカッ」）を Web Audio で合成する。サンプル音源は将来導入予定だが、現時点では合成のみ。
+
+> Pa/Ta フォルマント版（DB-90 Voice 風の試作）は DB-90 実機との差が大きかったため、サンプル音源導入までは DB-30 Click 版に戻して運用する。
 
 ### ノード構成
 
 ```
-PulseOsc(基音 F0) → BPF1(F1) ─┐
-                 → BPF2(F2) ─┼→ Gain(env vowel) ↘
-                 → BPF3(F3) ─┘                   → masterGain → destination
-NoiseBurst(8ms)  → HPF(>3kHz) → Gain(env consonant) ↗
+NoiseBuffer(50ms) → BiquadFilter(BPF) → Gain(env) ─┐
+                                                    ├→ masterGain → destination
+Oscillator(sine)                      → Gain(env) ─┘
 ```
 
-- **音源**: 矩形波またはノコギリ波で倍音を豊かにし、フォルマントが効きやすくする（基音 F0 で声の高さを決定）
-- **フォルマント**: 3 つの BiquadFilter（bandpass）を並列。中心周波数 F1/F2/F3 で母音色を決める。Q は 8〜12
-- **子音バースト**: 5〜8ms のノイズを HPF（カットオフ 3kHz 以上）で破裂音化し、母音の頭 2〜4ms に重ねて P/T 感を出す
-- **エンベロープ**: 母音側は 60〜100ms 減衰、子音側は 10〜20ms 減衰。両方とも超高速アタック
+- **ノイズ + バンドパスフィルター**でピッチを作るパーカッシブ成分（Click の主成分）
+- **サイン波（少量）**で芯を加える
+- 各 Gain は超高速アタック（≦1ms）→ exp 減衰でクリック感を出す
+- ノイズバッファは 50ms、`getNoiseBuffer` でキャッシュ再利用
 
 ### 音色パラメータ（実装目安）
 
-| 種類 | 母音 | 基音 F0 | F1 | F2 | F3 | 子音 | 母音 decay | 用途 |
-|------|------|---------|------|------|------|------|----------|------|
-| accent | Pa（明） | 220 Hz | 900 | 1500 | 2700 | P（強） | 100 ms | 小節頭（1拍子の場合は全拍） |
-| normal | Ta | 180 Hz | 730 | 1300 | 2400 | T | 80 ms | 通常拍 |
-| ci | Pi | 260 Hz | 320 | 2200 | 2900 | P | 90 ms | Tap Off / End Check |
-| sub | Po（小） | 150 Hz | 570 | 900 | 2400 | P（弱） | 50 ms | Subdivision サブビート |
+| 種類 | BPF中心周波数 | Q | ノイズピーク | サインピーク | 減衰 | 用途 |
+|------|------------|---|------------|------------|------|------|
+| accent | 2200 Hz | 12 | 0.9 | 0.25 | 50 ms | 小節頭（1拍子の場合は全拍） |
+| normal | 1100 Hz | 12 | 0.6 | 0.18 | 40 ms | 通常拍 |
+| ci | 1500 Hz | 14 | 0.7 | 0.22 | 45 ms | Tap Off / End Check |
+| sub | 800 Hz | 10 | 0.35 | 0.08 | 25 ms | Subdivision サブビート |
 
-数値は実装後の試聴で調整可。`playClick(type, time, opts)` のシグネチャと `opts` オーバーライドは維持する。
+数値は試聴で調整可。`playClick(type, time, opts)` の `opts` キーは旧形式（`frequency` / `Q` / `noiseGain` / `toneGain` / `toneDecay` / `waveform`）でオーバーライド可能。
 
 ---
 
@@ -193,6 +195,7 @@ NoiseBurst(8ms)  → HPF(>3kHz) → Gain(env consonant) ↗
 - BPM数値が拍に合わせて色フラッシュ
 - 再生ボタンにパルスリングアニメーション
 - **accel / rit 中の表示**: BPM 数値は瞬時値で逐次更新（`Math.round` で整数化）。テンポ名の隣に方向アイコン `↗`（accel: tempoEnd > tempo）/ `↘`（rit: tempoEnd < tempo）を表示。定速時は非表示
+- **テンポオフセット適用時の表示**: BPM 数値はオフセット込みの値を表示。オフセット 0 でなければ `In tempo (+30)` のようにオフセット値も `In tempo` ボタンに併記
 - **Subdivision 中のサブビート表示**: メインドットの間に補助ドット（subdot）を挿入する
   - 8th → メインドット間に 1 個 / Triplet → 2 個 / 16th → 3 個 / None → なし
   - 補助ドットはメインドットより小さく（直径 4〜6px）、色は控えめ（`var(--dm)` など）
@@ -282,6 +285,28 @@ BPM(t) = tempo + (tempoEnd - tempo) * t'
 
 - 再生中は BPM 数値を瞬時値で更新（`pUpd()` を `scheduleNext` 内で呼ぶ。`Math.round` で整数化）
 - テンポ名の隣に方向アイコン `↗`（accel）/ `↘`（rit）/ なし（定速）
+
+---
+
+## テンポオフセット（パフォーマンスタブ専用）
+
+遅いテンポで練習するために、現曲のすべてのセクションのテンポを一括でずらすオフセット機構。
+
+### 仕様
+
+- **配置**: パフォーマンスタブの BPM 数値の直下に `[ -10 ] [ In tempo ] [ +10 ]` を横並び
+- **状態**: グローバル変数 `tempoOffset`（初期値 0、範囲 -200〜+200）
+- **適用**: `scheduleNext` 内で `currentTempo = clampTempo(tempoAt(sec, progress(...)) + tempoOffset)`
+- **表示**: `In tempo` ボタンに現在値を併記。例: オフセット 0 → `In tempo`、+30 → `In tempo (+30)`、-20 → `In tempo (-20)`
+- **リセットタイミング**: `loadSong` / `newS`（新規曲作成）/ `clB`（クリア）の冒頭で 0 にリセット
+- **保持**: 再生停止 / タブ切替では保持。リロードで 0（localStorage には保存しない）
+- **適用範囲**: パフォーマンスタブのみ。テンポタブ（`createMetroTransport`）には影響させない
+
+### UI
+
+- ボタンは既存の `.fb` スタイル（`min-width:44px; min-height:44px; pill 形`）を流用
+- `In tempo` ボタンのみ最低幅 120px に拡張してオフセット値併記の余裕を持たせる
+- `.ofb`（offset buttons）クラスで flex 横並び中央寄せ
 
 ---
 
