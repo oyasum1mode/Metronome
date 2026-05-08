@@ -18,18 +18,23 @@
 --ba:#f05e23;--bi:#2a2a30;--bac:#ff7a45;
 --ci:#a78bfa;--cig:rgba(167,139,250,.3);--ec:#34d399;--ecg:rgba(52,211,153,.3);
 --red:#ef4444;--endc:#f59e0b;--endg:rgba(245,158,11,.3)}
+html,body{overscroll-behavior:none}
 body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;min-height:100vh;height:100vh;height:100svh;display:flex;align-items:stretch;justify-content:center;overflow:hidden;padding-top:8px;padding-top:max(8px,env(safe-area-inset-top,8px));padding-right:8px;padding-right:max(8px,env(safe-area-inset-right,8px));padding-bottom:16px;padding-bottom:max(16px,env(safe-area-inset-bottom,16px));padding-left:8px;padding-left:max(8px,env(safe-area-inset-left,8px))}
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 600px 400px at 50% 30%,rgba(240,94,35,.03)0%,transparent 70%);pointer-events:none}
 .app{width:100%;max-width:480px;height:100%;display:flex;flex-direction:column;min-height:0;padding:8px 4px 0}
 .hd{text-align:center;margin-bottom:8px;position:relative}
 .hd h1{font-family:'Instrument Serif',serif;font-size:20px;font-weight:400}
 .hd .sub{font-size:8px;color:var(--dm);letter-spacing:.3em;text-transform:uppercase;margin-top:1px}
+.vol{position:absolute;right:0;top:0;display:flex;align-items:center;gap:5px;color:var(--dm)}
+.vol span{font-size:12px;line-height:1}
+.vol input{width:88px}
 .tabs{display:flex;gap:2px;margin-bottom:10px;background:var(--sf);border-radius:6px;padding:2px}
 .tb{flex:1;min-height:44px;padding:5px 2px;border:none;background:transparent;color:var(--dm);font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.02em;text-transform:uppercase;cursor:pointer;border-radius:4px;transition:all .15s;white-space:nowrap;touch-action:manipulation}
 .tb.active{background:var(--as);color:var(--ac);border:1px solid rgba(240,94,35,.2)}
 .tc{display:none;min-height:0}
 .tc.active{display:block}
 .play-tab.active{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
+#tab-metro.play-tab.active,#tab-perf.play-tab.active{touch-action:pan-x pinch-zoom;overscroll-behavior:contain}
 .play-top{display:flex;flex-direction:column;gap:4px}
 .play-bottom{display:flex;flex-direction:column;gap:8px;margin-top:auto;padding-bottom:4px}
 .bv{font-family:'Instrument Serif',serif;font-size:60px;font-weight:400;line-height:1;text-align:center;transition:color .08s}
@@ -46,20 +51,22 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .tg-end{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--endc)}
 .tg-off{opacity:.4}
 .mc{font-size:9px;color:var(--dm);margin-top:2px}
-.dots{display:flex;justify-content:center;gap:8px;margin-bottom:10px;min-height:32px;align-items:center;flex-wrap:wrap}
+.dots{display:flex;justify-content:center;gap:6px;margin-bottom:10px;min-height:32px;align-items:center;flex-wrap:wrap}
 .dot{width:20px;height:20px;border-radius:50%;background:var(--bi);transition:all .05s}
 .dot.on{background:var(--ba);box-shadow:0 0 10px var(--ag);transform:scale(1.3)}
 .dot.acc{border:1.5px solid var(--dm)}.dot.acc.on{background:var(--bac);border-color:var(--bac)}
 .dot.ci{background:var(--ci);box-shadow:0 0 10px var(--cig);transform:scale(1.3)}
 .dot.ec{background:var(--ec);box-shadow:0 0 10px var(--ecg);transform:scale(1.3)}
 .dot.ed{background:var(--endc);box-shadow:0 0 10px var(--endg);transform:scale(1.3)}
+.subdot{width:5px;height:5px;border-radius:50%;background:var(--dm);opacity:.5;transition:opacity .08s,background .08s,transform .08s}
+.subdot.on{background:var(--ba);opacity:1;transform:scale(1.5)}
 .sw{margin-bottom:8px;padding:0 4px}
-input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--bd);border-radius:2px;outline:none}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--bd);border-radius:2px;outline:none;touch-action:pan-x}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--ac);cursor:pointer;box-shadow:0 0 6px var(--ag)}
 input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--ac);cursor:pointer;border:none}
 .sll{display:flex;justify-content:space-between;margin-top:3px;font-size:9px;color:var(--dm)}
 .fine{display:flex;justify-content:center;gap:4px;margin-bottom:8px;flex-wrap:wrap}
-.fb{min-width:44px;height:44px;padding:0 11px;border-radius:22px;border:1px solid var(--bd);background:var(--sf);color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;user-select:none;touch-action:manipulation}
+.fb{min-width:44px;min-height:44px;padding:0 11px;border-radius:22px;border:1px solid var(--bd);background:var(--sf);color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;user-select:none;touch-action:manipulation}
 .fb:hover{border-color:var(--ac);color:var(--ac)}.fb:active{transform:scale(.93)}
 .tsw{margin-bottom:8px;text-align:center}
 .tsl{font-size:9px;color:var(--dm);letter-spacing:.15em;text-transform:uppercase;margin-bottom:3px}
@@ -160,11 +167,13 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 @media (max-height:700px){
   .hd{margin-bottom:6px}
   .hd h1{font-size:18px}
+  .vol input{width:72px}
   .tabs{margin-bottom:8px}
   .bv{font-size:48px}
   .tn{font-size:12px}
-  .dots{gap:6px;margin-bottom:8px;min-height:24px}
+  .dots{gap:3px;margin-bottom:8px;min-height:24px}
   .dot{width:16px;height:16px}
+  .subdot{width:4px;height:4px}
   .subctl{margin-bottom:8px}
   .orow,.rrow,.fine,.pw,.tapw{margin-bottom:6px}
   .pb{width:60px;height:60px}
@@ -179,7 +188,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 </head>
 <body>
 <div class="app">
-  <div class="hd"><h1>Metronome</h1><div class="sub">precision timing</div></div>
+  <div class="hd"><h1>Metronome</h1><div class="sub">precision timing</div><label class="vol" aria-label="音量"><span>VOL</span><input type="range" id="volSlider" min="0" max="1.5" step="0.05" value="1"></label></div>
   <div class="tabs">
     <button class="tb active" data-t="metro">テンポ</button>
     <button class="tb" data-t="perf">パフォーマンス</button>
@@ -271,12 +280,14 @@ const SUBDIVISION_STATES=[
 let actx=null,masterGain=null,noiseBuffer=null;
 let schedulerTimer=null,visualTimer=null,activeTransport=null,noteQueue=[];
 let wakeLockSentinel=null;
+let masterVolume=parseFloat(localStorage.getItem('metronome-volume'));
+if(!Number.isFinite(masterVolume))masterVolume=1;
 
 function ea(){
   if(!actx){
     actx=new(window.AudioContext||window.webkitAudioContext)();
     masterGain=actx.createGain();
-    masterGain.gain.value=1;
+    masterGain.gain.value=masterVolume;
     masterGain.connect(actx.destination);
   }
   if(actx.state==='suspended')actx.resume();
@@ -284,15 +295,19 @@ function ea(){
 }
 function getNoiseBuffer(c){
   if(noiseBuffer)return noiseBuffer;
-  const blen=Math.ceil(c.sampleRate*.004),buf=c.createBuffer(1,blen,c.sampleRate),bd=buf.getChannelData(0);
+  const blen=Math.ceil(c.sampleRate*.05),buf=c.createBuffer(1,blen,c.sampleRate),bd=buf.getChannelData(0);
   for(let i=0;i<blen;i++)bd[i]=Math.random()*2-1;
   noiseBuffer=buf;
   return noiseBuffer;
 }
+function applyMasterVolume(v){
+  masterVolume=Math.max(0,Math.min(1.5,Number.isFinite(v)?v:1));
+  if(masterGain&&actx)masterGain.gain.setValueAtTime(masterVolume,actx.currentTime);
+}
 function resetMasterGain(){
   const c=ea(),now=c.currentTime;
   masterGain.gain.cancelScheduledValues(now);
-  masterGain.gain.setValueAtTime(1,now);
+  masterGain.gain.setValueAtTime(masterVolume,now);
 }
 function muteMasterGain(){
   if(!actx||!masterGain)return;
@@ -303,18 +318,36 @@ function muteMasterGain(){
 function playClick(type,time,opts={}){
   const c=ea();
   const when=Math.max(time,c.currentTime);
+  const defaults={
+    accent:{freq:2200,q:12,noisePeak:.9,tonePeak:.25,decay:.05},
+    normal:{freq:1100,q:12,noisePeak:.6,tonePeak:.18,decay:.04},
+    ci:{freq:1500,q:14,noisePeak:.7,tonePeak:.22,decay:.045},
+    sub:{freq:800,q:10,noisePeak:.35,tonePeak:.08,decay:.025}
+  };
+  const d=defaults[type]||defaults.normal;
+  const freq=opts.frequency??d.freq;
+  const q=opts.Q??d.q;
+  const noisePeak=opts.noiseGain??d.noisePeak;
+  const tonePeak=opts.toneGain??d.tonePeak;
+  const decay=opts.toneDecay??d.decay;
+  const noise=c.createBufferSource(),bpf=c.createBiquadFilter(),noiseGain=c.createGain();
+  noise.buffer=getNoiseBuffer(c);
+  bpf.type='bandpass';
+  bpf.frequency.value=freq;
+  bpf.Q.value=q;
+  noiseGain.gain.setValueAtTime(.0001,when);
+  noiseGain.gain.exponentialRampToValueAtTime(noisePeak,when+.001);
+  noiseGain.gain.exponentialRampToValueAtTime(.0001,when+decay);
+  noise.connect(bpf);bpf.connect(noiseGain);noiseGain.connect(masterGain);
+  noise.start(when);noise.stop(when+decay+.02);
   const tone=c.createOscillator(),toneGain=c.createGain();
-  const noise=c.createBufferSource(),noiseGain=c.createGain();
-  tone.connect(toneGain);toneGain.connect(masterGain);
-  noise.buffer=getNoiseBuffer(c);noise.connect(noiseGain);noiseGain.connect(masterGain);
   tone.type=opts.waveform||'sine';
-  tone.frequency.value=opts.frequency??(type==='accent'?1500:type==='ci'?1200:900);
-  toneGain.gain.setValueAtTime(opts.toneGain??(type==='accent' ? .8 : type==='ci' ? .6 : .5),when);
-  toneGain.gain.exponentialRampToValueAtTime(.001,when+(opts.toneDecay??(type==='accent' ? .04 : .035)));
-  noiseGain.gain.setValueAtTime(opts.noiseGain??(type==='accent' ? .6 : type==='ci' ? .4 : .3),when);
-  noiseGain.gain.exponentialRampToValueAtTime(.001,when+(opts.noiseDecay??(type==='accent' ? .005 : .004)));
-  tone.start(when);tone.stop(when+.05);
-  noise.start(when);noise.stop(when+.01);
+  tone.frequency.value=freq;
+  toneGain.gain.setValueAtTime(.0001,when);
+  toneGain.gain.exponentialRampToValueAtTime(tonePeak,when+.001);
+  toneGain.gain.exponentialRampToValueAtTime(.0001,when+decay*.7);
+  tone.connect(toneGain);toneGain.connect(masterGain);
+  tone.start(when);tone.stop(when+decay+.02);
 }
 function queueVisual(evt){
   noteQueue.push(evt);
@@ -341,14 +374,26 @@ function paintDots(id,activeIndex,cls){
   dots.forEach(dot=>{dot.className=dot.classList.contains('acc')?'dot acc':'dot'});
   if(dots[activeIndex])dots[activeIndex].classList.add(cls);
 }
+function paintSubdot(id,beatIndex,subIndex){
+  const el=$(id).querySelector(`.subdot[data-beat="${beatIndex}"][data-sub="${subIndex}"]`);
+  if(!el)return;
+  el.classList.add('on');
+  setTimeout(()=>el.classList.remove('on'),90);
+}
+function clearDotLights(id){
+  $(id).querySelectorAll('.dot').forEach(d=>{d.className=d.classList.contains('acc')?'dot acc':'dot'});
+  $(id).querySelectorAll('.subdot').forEach(d=>d.classList.remove('on'));
+}
 function applyVisual(evt){
   if(evt.panel==='metro'){
+    if(evt.kind==='sub'){paintSubdot('mDt',evt.beatIndex,evt.subIndex);return}
     paintDots('mDt',evt.beatIndex,'on');
     flashBpm('mBv',evt.flashClass||'f1');
     pulseRing('mPr');
     return;
   }
   if(evt.panel==='perf'){
+    if(evt.kind==='sub'){paintSubdot('pDt',evt.beatIndex,evt.subIndex);return}
     paintDots('pDt',evt.beatIndex,evt.dotClass||'on');
     flashBpm('pBv',evt.flashClass||'f1');
     pulseRing('pPr');
@@ -416,6 +461,12 @@ function syncWakeLock(){
   if(mPlaying||pPlaying)requestWakeLock();
   else releaseWakeLock();
 }
+$('volSlider').value=String(masterVolume);
+$('volSlider').addEventListener('input',e=>{
+  const v=parseFloat(e.target.value);
+  applyMasterVolume(v);
+  localStorage.setItem('metronome-volume',String(masterVolume));
+});
 
 function secLabel(n){
   if(n<26)return String.fromCharCode(65+n);
@@ -433,27 +484,39 @@ function cycleSubdivision(key){
   const idx=SUBDIVISION_STATES.findIndex(s=>s.key===key);
   return SUBDIVISION_STATES[(idx+1)%SUBDIVISION_STATES.length];
 }
-function scheduleSubdivision(beatTime,beatDuration,key){
+function renderDots(id,beats,subdivisionKey){
+  const el=$(id),sub=getSubdivisionState(subdivisionKey);
+  el.innerHTML='';
+  for(let i=0;i<beats;i++){
+    const d=document.createElement('div');
+    d.className='dot';
+    if(beats>1&&i===0)d.classList.add('acc');
+    el.appendChild(d);
+    for(let j=1;j<sub.parts;j++){
+      const sd=document.createElement('div');
+      sd.className='subdot';
+      sd.dataset.beat=i;
+      sd.dataset.sub=j;
+      el.appendChild(sd);
+    }
+  }
+}
+function scheduleSubdivision(beatTime,beatDuration,key,panel,beatIndex){
   const sub=getSubdivisionState(key);
   if(sub.parts<=1)return;
   const step=beatDuration/sub.parts;
   for(let i=1;i<sub.parts;i++){
-    playClick('sub',beatTime+step*i,{
-      waveform:'triangle',
-      frequency:620,
-      toneGain:.24,
-      noiseGain:.06,
-      toneDecay:.022,
-      noiseDecay:.002
-    });
+    const subTime=beatTime+step*i;
+    playClick('sub',subTime);
+    if(panel)queueVisual({kind:'sub',panel,time:subTime,beatIndex,subIndex:i});
   }
 }
 
 let mBpm=120,mBeats=4,mPlaying=false,mSubdivision='none';
 function mUpd(){$('mBv').textContent=mBpm;$('mTn').textContent=tN(mBpm);$('mSl').value=mBpm;$('mTs').textContent=mBeats===1?'1':mBeats+'/4';$('mTsSl').value=mBeats}
 function mSetBpm(v){mBpm=clampTempo(v);mUpd()}
-function mDots(){const el=$('mDt');el.innerHTML='';for(let i=0;i<mBeats;i++){const d=document.createElement('div');d.className='dot';if(mBeats>1&&i===0)d.classList.add('acc');el.appendChild(d)}}
-function mUpdSubdivision(){$('mSubBtn').textContent=getSubdivisionState(mSubdivision).label}
+function mDots(){renderDots('mDt',mBeats,mSubdivision)}
+function mUpdSubdivision(){$('mSubBtn').textContent=getSubdivisionState(mSubdivision).label;mDots()}
 function createMetroTransport(){
   const c=ea();
   return{
@@ -464,7 +527,7 @@ function createMetroTransport(){
       const accent=(mBeats===1)||this.beatIndex===0;
       const beatDuration=60/mBpm;
       playClick(accent?'accent':'normal',time);
-      scheduleSubdivision(time,beatDuration,mSubdivision);
+      scheduleSubdivision(time,beatDuration,mSubdivision,'metro',this.beatIndex);
       queueVisual({panel:'metro',time,beatIndex:this.beatIndex,flashClass:'f1'});
     },
     advance(){
@@ -487,7 +550,7 @@ function mStop(){
   stopTransport();
   $('mPb').classList.remove('on');
   $('mPi').innerHTML='<polygon class="tri" points="8,5 20,12 8,19"/>';
-  $('mDt').querySelectorAll('.dot').forEach(d=>{d.className=d.classList.contains('acc')?'dot acc':'dot'});
+  clearDotLights('mDt');
   $('mBv').className='bv';
   syncWakeLock();
 }
@@ -520,8 +583,8 @@ let lib=[],curSId=null;
 let lastTmp=120,lastBts=4;
 
 function pUpd(){$('pBv').textContent=pBpm;$('pTn').textContent=tN(pBpm)}
-function pDots(n){const el=$('pDt');el.innerHTML='';for(let i=0;i<n;i++){const d=document.createElement('div');d.className='dot';if(n>1&&i===0)d.classList.add('acc');el.appendChild(d)}}
-function pUpdSubdivision(){$('pSubBtn').textContent=getSubdivisionState(pSubdivision).label}
+function pDots(n,subdivisionKey=pSubdivision){renderDots('pDt',n,subdivisionKey)}
+function pUpdSubdivision(){$('pSubBtn').textContent=getSubdivisionState(pSubdivision).label;if(!isCi&&!isEc)pDots(pBeats,pSubdivision)}
 function pSetPlay(){$('pPb').classList.add('on');$('pPi').innerHTML='<rect class="bar" x="6" y="5" width="4" height="14" rx="1"/><rect class="bar" x="14" y="5" width="4" height="14" rx="1"/>'}
 function pSetStop(){$('pPb').classList.remove('on');$('pPi').innerHTML='<polygon class="tri" points="8,5 20,12 8,19"/>'}
 function upSTB(){$('pST').innerHTML=sTitle?`<span>${sTitle}</span>`:''}
@@ -567,7 +630,7 @@ function setPerformanceMainState(sectionIndex,measureIndex){
   ciBt=0;
   ecBt=0;
   pUpd();
-  pDots(pBeats);
+  pDots(pBeats,pSubdivision);
   upSB();
   renderSL();
 }
@@ -577,7 +640,7 @@ function enterCountInState(baseTempo){
   ciBt=0;
   pBpm=clampTempo(baseTempo);
   pUpd();
-  pDots(ciBts);
+  pDots(ciBts,'none');
   upSB();
 }
 function enterEndCheckState(tempo){
@@ -586,7 +649,7 @@ function enterEndCheckState(tempo){
   ecBt=0;
   pBpm=clampTempo(tempo);
   pUpd();
-  pDots(ecBts);
+  pDots(ecBts,'none');
   upSB();
 }
 function createPerformanceTransport(){
@@ -607,7 +670,7 @@ function createPerformanceTransport(){
     onComplete(){
       pPlaying=false;
       pSetStop();
-      $('pDt').querySelectorAll('.dot').forEach(d=>{d.className=d.classList.contains('acc')?'dot acc':'dot'});
+      clearDotLights('pDt');
       $('pBv').className='bv';
       isCi=false;
       isEc=false;
@@ -666,7 +729,7 @@ function createPerformanceTransport(){
       const accent=(this.currentBeats===1)||this.beatIndex===0;
       const beatDuration=60/this.currentTempo;
       playClick(accent?'accent':'normal',time);
-      scheduleSubdivision(time,beatDuration,pSubdivision);
+      scheduleSubdivision(time,beatDuration,pSubdivision,'perf',this.beatIndex);
       queueVisual({panel:'perf',time,beatIndex:this.beatIndex,dotClass:'on',flashClass:'f1'});
     },
     advance(){
@@ -729,7 +792,7 @@ function createPerformanceTransport(){
     pBpm=120;
     pBeats=4;
     pUpd();
-    pDots(4);
+    pDots(4,'none');
     upSB();
     transport.finish();
   }
@@ -750,7 +813,7 @@ function pStop(){
   isEc=false;
   stopTransport();
   pSetStop();
-  $('pDt').querySelectorAll('.dot').forEach(d=>{d.className=d.classList.contains('acc')?'dot acc':'dot'});
+  clearDotLights('pDt');
   $('pBv').className='bv';
   curS=-1;
   curM=0;
