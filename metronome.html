@@ -137,6 +137,8 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .sdet summary::-webkit-details-marker{display:none}
 .sdet summary::before{content:'⋯';margin-right:6px;color:var(--ac)}
 .curvev{font-size:8px;color:var(--dm);margin-top:3px;text-align:right}
+.ofb{display:flex;justify-content:center;gap:6px;margin:6px 0 4px;flex-wrap:wrap}
+#pOf0{min-width:120px}
 .fg label{display:block;font-size:7px;color:var(--dm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px}
 .fg input,.fg select{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:3px;padding:3px 4px;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;outline:none}
 .fg input:focus,.fg select:focus{border-color:var(--ac)}
@@ -182,6 +184,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
   .dot{width:16px;height:16px}
   .subdot{width:4px;height:4px}
   .subctl{margin-bottom:8px}
+  .ofb{margin:4px 0 2px}
   .orow,.rrow,.fine,.pw{margin-bottom:6px}
   #tab-metro .pb,#tab-perf .pb{width:220px;height:64px}
 }
@@ -224,6 +227,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
     <div class="play-top">
       <div class="stb" id="pST"></div>
       <div class="bv" id="pBv">120</div><div class="bs">bpm</div><div class="tn"><span id="pTn">Allegro</span><span class="trend" id="pTrend"></span></div>
+      <div class="ofb"><button class="fb" id="pOfM" type="button">−10</button><button class="fb" id="pOf0" type="button">In tempo</button><button class="fb" id="pOfP" type="button">+10</button></div>
       <div class="sb" id="pSB"></div>
       <div class="dots" id="pDt"></div>
     </div>
@@ -325,46 +329,35 @@ function playClick(type,time,opts={}){
   const c=ea();
   const when=Math.max(time,c.currentTime);
   const defaults={
-    accent:{f0:220,f:[900,1500,2700],q:10,vPeak:.45,cPeak:.5,vDecay:.10,cDecay:.020},
-    normal:{f0:180,f:[730,1300,2400],q:10,vPeak:.38,cPeak:.4,vDecay:.08,cDecay:.016},
-    ci:{f0:260,f:[320,2200,2900],q:10,vPeak:.4,cPeak:.45,vDecay:.09,cDecay:.018},
-    sub:{f0:150,f:[570,900,2400],q:10,vPeak:.18,cPeak:.18,vDecay:.05,cDecay:.012}
+    accent:{freq:2200,q:12,noisePeak:.9,tonePeak:.25,decay:.05},
+    normal:{freq:1100,q:12,noisePeak:.6,tonePeak:.18,decay:.04},
+    ci:{freq:1500,q:14,noisePeak:.7,tonePeak:.22,decay:.045},
+    sub:{freq:800,q:10,noisePeak:.35,tonePeak:.08,decay:.025}
   };
   const d=defaults[type]||defaults.normal;
-  const f0=opts.f0??opts.frequency??d.f0;
-  const formants=opts.formants??d.f;
+  const freq=opts.frequency??d.freq;
   const q=opts.Q??d.q;
-  const vPeak=opts.vowelPeak??opts.toneGain??d.vPeak;
-  const cPeak=opts.consonantPeak??opts.noiseGain??d.cPeak;
-  const vDecay=opts.vowelDecay??opts.toneDecay??d.vDecay;
-  const cDecay=opts.consonantDecay??d.cDecay;
-  const osc=c.createOscillator(),vowelGain=c.createGain();
-  osc.type=opts.waveform||'square';
-  osc.frequency.value=f0;
-  vowelGain.gain.setValueAtTime(.0001,when);
-  vowelGain.gain.exponentialRampToValueAtTime(vPeak,when+.001);
-  vowelGain.gain.exponentialRampToValueAtTime(.0001,when+vDecay);
-  formants.forEach(fc=>{
-    const bpf=c.createBiquadFilter();
-    bpf.type='bandpass';
-    bpf.frequency.value=fc;
-    bpf.Q.value=q;
-    osc.connect(bpf);
-    bpf.connect(vowelGain);
-  });
-  vowelGain.connect(masterGain);
-  osc.start(when);
-  osc.stop(when+vDecay+.02);
-  const noise=c.createBufferSource(),hpf=c.createBiquadFilter(),consonantGain=c.createGain();
+  const noisePeak=opts.noiseGain??d.noisePeak;
+  const tonePeak=opts.toneGain??d.tonePeak;
+  const decay=opts.toneDecay??d.decay;
+  const noise=c.createBufferSource(),bpf=c.createBiquadFilter(),noiseGain=c.createGain();
   noise.buffer=getNoiseBuffer(c);
-  hpf.type='highpass';
-  hpf.frequency.value=3000;
-  consonantGain.gain.setValueAtTime(.0001,when);
-  consonantGain.gain.exponentialRampToValueAtTime(cPeak,when+.0008);
-  consonantGain.gain.exponentialRampToValueAtTime(.0001,when+cDecay);
-  noise.connect(hpf);hpf.connect(consonantGain);consonantGain.connect(masterGain);
-  noise.start(when);
-  noise.stop(when+cDecay+.02);
+  bpf.type='bandpass';
+  bpf.frequency.value=freq;
+  bpf.Q.value=q;
+  noiseGain.gain.setValueAtTime(.0001,when);
+  noiseGain.gain.exponentialRampToValueAtTime(noisePeak,when+.001);
+  noiseGain.gain.exponentialRampToValueAtTime(.0001,when+decay);
+  noise.connect(bpf);bpf.connect(noiseGain);noiseGain.connect(masterGain);
+  noise.start(when);noise.stop(when+decay+.02);
+  const tone=c.createOscillator(),toneGain=c.createGain();
+  tone.type=opts.waveform||'sine';
+  tone.frequency.value=freq;
+  toneGain.gain.setValueAtTime(.0001,when);
+  toneGain.gain.exponentialRampToValueAtTime(tonePeak,when+.001);
+  toneGain.gain.exponentialRampToValueAtTime(.0001,when+decay*.7);
+  tone.connect(toneGain);toneGain.connect(masterGain);
+  tone.start(when);tone.stop(when+decay+.02);
 }
 function queueVisual(evt){
   noteQueue.push(evt);
@@ -490,6 +483,7 @@ function secLabel(n){
   if(n<26)return String.fromCharCode(65+n);
   return String.fromCharCode(65+Math.floor(n/26)-1)+String.fromCharCode(65+(n%26));
 }
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function assignLabels(){
   let mi=0;
   secs.forEach(s=>{if(s.type==='end')s.label='End';else{s.label=secLabel(mi);mi++}});
@@ -623,6 +617,7 @@ let sTitle='',secs=[],curS=-1,curM=0;
 let rF=0,rT=0;
 let lib=[],curSId=null;
 let lastTmp=120,lastBts=4;
+let tempoOffset=0;
 
 function updateTempoTrend(){
   const el=$('pTrend'),sec=secs[curS];
@@ -631,6 +626,20 @@ function updateTempoTrend(){
   el.textContent=end>sec.tempo?'↗':end<sec.tempo?'↘':'';
 }
 function pUpd(){$('pBv').textContent=pBpm;$('pTn').textContent=tN(pBpm);updateTempoTrend()}
+function updateOffsetUI(){
+  const lbl=tempoOffset===0?'In tempo':`In tempo (${tempoOffset>0?'+':''}${tempoOffset})`;
+  $('pOf0').textContent=lbl;
+}
+function applyTempoOffset(delta){
+  tempoOffset=Math.max(-200,Math.min(200,tempoOffset+delta));
+  updateOffsetUI();
+  if(!pPlaying)pUpd();
+}
+function resetTempoOffset(){
+  tempoOffset=0;
+  updateOffsetUI();
+  if(!pPlaying)pUpd();
+}
 function pDots(n,subdivisionKey=pSubdivision){renderDots('pDt',n,subdivisionKey)}
 function pUpdSubdivision(){$('pSubBtn').textContent=getSubdivisionState(pSubdivision).label;if(!isCi&&!isEc)pDots(pBeats,pSubdivision)}
 function pSetPlay(){$('pPb').classList.add('on');$('pPi').innerHTML='<rect class="bar" x="6" y="5" width="4" height="14" rx="1"/><rect class="bar" x="14" y="5" width="4" height="14" rx="1"/>'}
@@ -655,9 +664,9 @@ function upRange(){
   rf.innerHTML='';
   rt.innerHTML='';
   secs.forEach((s,i)=>{
-    const l=s.label+(s.name?' '+s.name:'');
-    rf.innerHTML+=`<option value="${i}">${l}</option>`;
-    rt.innerHTML+=`<option value="${i}">${l}</option>`;
+    const display=s.name?`${escapeHtml(s.name)} (${escapeHtml(s.label)})`:escapeHtml(s.label);
+    rf.innerHTML+=`<option value="${i}">${display}</option>`;
+    rt.innerHTML+=`<option value="${i}">${display}</option>`;
   });
   if(secs.length>0){
     rF=Math.min(rF,secs.length-1);
@@ -712,7 +721,7 @@ function createPerformanceTransport(){
     beatIndex:0,
     ciIndex:0,
     ecIndex:0,
-    currentTempo:clampTempo(firstSection&&firstSection.tempo),
+    currentTempo:clampTempo((firstSection&&firstSection.tempo)+tempoOffset),
     currentBeats:clampBeats(firstSection&&firstSection.timeSig),
     finish(){this.isRunning=false},
     onComplete(){
@@ -736,7 +745,7 @@ function createPerformanceTransport(){
       this.sectionIndex=sectionIndex;
       this.measureIndex=measureIndex;
       this.beatIndex=beatIndex;
-      this.currentTempo=clampTempo(sec.tempo);
+      this.currentTempo=clampTempo(sec.tempo+tempoOffset);
       this.currentBeats=clampBeats(sec.timeSig);
       setPerformanceMainState(sectionIndex,measureIndex);
     },
@@ -750,7 +759,7 @@ function createPerformanceTransport(){
       this.ecIndex=0;
       const sourceSection=secs[sourceSectionIndex]||secs[rF]||null;
       const targetSection=secs[rT]||sourceSection;
-      const tempo=ecBef?clampTempo(sourceSection&&sourceSection.tempo):clampTempo(targetSection&&targetSection.tempo);
+      const tempo=ecBef?clampTempo((sourceSection&&sourceSection.tempo)+tempoOffset):clampTempo((targetSection&&targetSection.tempo)+tempoOffset);
       this.currentTempo=tempo;
       this.currentBeats=ecBts;
       lastTmp=tempo;
@@ -775,7 +784,7 @@ function createPerformanceTransport(){
         queueVisual({panel:'perf',time,beatIndex:0,dotClass:'ed',flashClass:'f4'});
         return;
       }
-      this.currentTempo=clampTempo(tempoAt(sec,progress(sec,this.beatIndex,this.measureIndex)));
+      this.currentTempo=clampTempo(tempoAt(sec,progress(sec,this.beatIndex,this.measureIndex))+tempoOffset);
       const accent=(this.currentBeats===1)||this.beatIndex===0;
       const beatDuration=60/this.currentTempo;
       playClick(accent?'accent':'normal',time);
@@ -874,6 +883,9 @@ function pStop(){
   syncWakeLock();
 }
 $('pPb').addEventListener('click',()=>{pPlaying?pStop():pStart()});
+$('pOfM').addEventListener('click',()=>applyTempoOffset(-10));
+$('pOf0').addEventListener('click',resetTempoOffset);
+$('pOfP').addEventListener('click',()=>applyTempoOffset(10));
 $('ciT').addEventListener('click',()=>{ciOn=!ciOn;$('ciT').classList.toggle('on',ciOn)});
 $('ecT').addEventListener('click',()=>{ecOn=!ecOn;const e=$('ecT');e.classList.remove('on','og');if(ecOn)e.classList.add('og')});
 $('ciS').querySelectorAll('.so').forEach(b=>{b.addEventListener('click',()=>{$('ciS').querySelectorAll('.so').forEach(x=>x.classList.remove('ap'));b.classList.add('ap');ciBts=parseInt(b.dataset.v,10)})});
@@ -975,7 +987,7 @@ $('addE').addEventListener('click',()=>{
 function saveLib(){try{localStorage.setItem('metronome-lib',JSON.stringify(lib))}catch(e){}}
 function loadLib(){try{const r=localStorage.getItem('metronome-lib');if(r)lib=JSON.parse(r);lib=lib.map(s=>({...s,sections:normalizeSections(s.sections)}))}catch(e){lib=[]}}
 function saveCur(){if(!curSId)return;const i=lib.findIndex(s=>s.id===curSId);if(i>=0){lib[i].title=sTitle;lib[i].sections=JSON.parse(JSON.stringify(secs))}saveLib()}
-function loadSong(s){curSId=s.id;sTitle=s.title;$('sT').value=sTitle;secs=normalizeSections(JSON.parse(JSON.stringify(s.sections||[])));assignLabels();curS=-1;curM=0;rF=0;rT=Math.max(0,secs.length-1);updateAll()}
+function loadSong(s){resetTempoOffset();curSId=s.id;sTitle=s.title;$('sT').value=sTitle;secs=normalizeSections(JSON.parse(JSON.stringify(s.sections||[])));assignLabels();curS=-1;curM=0;rF=0;rT=Math.max(0,secs.length-1);updateAll()}
 
 function renderLL(){
   const l=$('lList');
@@ -1015,7 +1027,7 @@ function switchTab(t){
   if(t==='song')renderSL();
   if(t==='lib')renderLL();
 }
-$('newS').addEventListener('click',()=>{saveCur();const id='s'+Date.now();const s={id,title:'',sections:[]};lib.push(s);saveLib();loadSong(s);switchTab('song')});
+$('newS').addEventListener('click',()=>{resetTempoOffset();saveCur();const id='s'+Date.now();const s={id,title:'',sections:[]};lib.push(s);saveLib();loadSong(s);switchTab('song')});
 $('svL').addEventListener('click',()=>{
   sTitle=$('sT').value;
   if(!curSId){curSId='s'+Date.now();lib.push({id:curSId,title:sTitle,sections:JSON.parse(JSON.stringify(secs))})}
@@ -1038,7 +1050,7 @@ $('exCp').addEventListener('click',()=>{$('exA').select();navigator.clipboard.wr
 $('imB').addEventListener('click',()=>{$('imA').value='';$('imM').classList.add('show')});
 $('imCl').addEventListener('click',()=>$('imM').classList.remove('show'));
 $('imLd').addEventListener('click',()=>{const d=dec($('imA').value);if(!d){toast('無効なコード');return}saveCur();const id='s'+Date.now();const s={id,title:d.title,sections:d.sections};lib.push(s);saveLib();loadSong(s);$('imM').classList.remove('show');toast('読み込みました')});
-$('clB').addEventListener('click',()=>{if(!confirm('クリア？'))return;sTitle='';$('sT').value='';secs=[];curS=-1;curM=0;updateAll();saveCur()});
+$('clB').addEventListener('click',()=>{if(!confirm('クリア？'))return;resetTempoOffset();sTitle='';$('sT').value='';secs=[];curS=-1;curM=0;updateAll();saveCur()});
 $('sT').addEventListener('input',e=>{sTitle=e.target.value;upSTB()});
 
 document.querySelectorAll('.tb').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.t)));
@@ -1057,7 +1069,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})});
 }
-(()=>{loadLib();mDots();mUpd();mUpdSubdivision();pDots(4);pUpd();pUpdSubdivision();upSTB();upSB();upRange();renderLL()})();
+(()=>{loadLib();mDots();mUpd();mUpdSubdivision();pDots(4);pUpd();pUpdSubdivision();updateOffsetUI();upSTB();upSB();upRange();renderLL()})();
 </script>
 </body>
 </html>
