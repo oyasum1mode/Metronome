@@ -153,31 +153,32 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
 
 ## 音色（Web Audio API）
 
-BOSS DB-30 系の Click 音（木魚っぽい「コッカッ」）を Web Audio で合成する。サンプル音源は使わない。
+BOSS DB-90 の Voice 系を意識した「Pa/Ta」風の掛け声を Web Audio で合成する。サンプル音源は使わない（実機サンプルは著作権上使えないため、フォルマント合成で近づける）。
 
 ### ノード構成
 
 ```
-NoiseBuffer(50ms) → BiquadFilter(BPF) → Gain(env) ─┐
-                                                    ├→ masterGain → destination
-Oscillator(sine)                      → Gain(env) ─┘
+PulseOsc(基音 F0) → BPF1(F1) ─┐
+                 → BPF2(F2) ─┼→ Gain(env vowel) ↘
+                 → BPF3(F3) ─┘                   → masterGain → destination
+NoiseBurst(8ms)  → HPF(>3kHz) → Gain(env consonant) ↗
 ```
 
-- **ノイズ + バンドパスフィルター**でピッチを作るパーカッシブ成分（Click の主成分）
-- **サイン波（少量）**で芯を加える
-- 各 Gain は超高速アタック（≦1ms）→ exp 減衰でクリック感を出す
-- ノイズバッファは 50ms、`getNoiseBuffer` でキャッシュ再利用
+- **音源**: 矩形波またはノコギリ波で倍音を豊かにし、フォルマントが効きやすくする（基音 F0 で声の高さを決定）
+- **フォルマント**: 3 つの BiquadFilter（bandpass）を並列。中心周波数 F1/F2/F3 で母音色を決める。Q は 8〜12
+- **子音バースト**: 5〜8ms のノイズを HPF（カットオフ 3kHz 以上）で破裂音化し、母音の頭 2〜4ms に重ねて P/T 感を出す
+- **エンベロープ**: 母音側は 60〜100ms 減衰、子音側は 10〜20ms 減衰。両方とも超高速アタック
 
 ### 音色パラメータ（実装目安）
 
-| 種類 | BPF中心周波数 | Q | ノイズピーク | サインピーク | 減衰 | 用途 |
-|------|------------|---|------------|------------|------|------|
-| accent | 2200 Hz | 12 | 0.9 | 0.25 | 50 ms | 小節頭（1拍子の場合は全拍） |
-| normal | 1100 Hz | 12 | 0.6 | 0.18 | 40 ms | 通常拍 |
-| ci | 1500 Hz | 14 | 0.7 | 0.22 | 45 ms | Tap Off / End Check |
-| sub | 800 Hz | 10 | 0.35 | 0.08 | 25 ms | Subdivision サブビート |
+| 種類 | 母音 | 基音 F0 | F1 | F2 | F3 | 子音 | 母音 decay | 用途 |
+|------|------|---------|------|------|------|------|----------|------|
+| accent | Pa（明） | 220 Hz | 900 | 1500 | 2700 | P（強） | 100 ms | 小節頭（1拍子の場合は全拍） |
+| normal | Ta | 180 Hz | 730 | 1300 | 2400 | T | 80 ms | 通常拍 |
+| ci | Pi | 260 Hz | 320 | 2200 | 2900 | P | 90 ms | Tap Off / End Check |
+| sub | Po（小） | 150 Hz | 570 | 900 | 2400 | P（弱） | 50 ms | Subdivision サブビート |
 
-数値は実装後の試聴で調整可。`playClick(type, time, opts)` の `opts` で個別オーバーライドできる現状の作りを維持する。
+数値は実装後の試聴で調整可。`playClick(type, time, opts)` のシグネチャと `opts` オーバーライドは維持する。
 
 ---
 
@@ -191,6 +192,7 @@ Oscillator(sine)                      → Gain(env) ─┘
   - End: 黄色 (`--endc`)
 - BPM数値が拍に合わせて色フラッシュ
 - 再生ボタンにパルスリングアニメーション
+- **accel / rit 中の表示**: BPM 数値は瞬時値で逐次更新（`Math.round` で整数化）。テンポ名の隣に方向アイコン `↗`（accel: tempoEnd > tempo）/ `↘`（rit: tempoEnd < tempo）を表示。定速時は非表示
 - **Subdivision 中のサブビート表示**: メインドットの間に補助ドット（subdot）を挿入する
   - 8th → メインドット間に 1 個 / Triplet → 2 個 / 16th → 3 個 / None → なし
   - 補助ドットはメインドットより小さく（直径 4〜6px）、色は控えめ（`var(--dm)` など）
@@ -217,7 +219,9 @@ Oscillator(sine)                      → Gain(env) ─┘
   name: 'Intro',            // ユーザー入力の名前
   startMeasure: 1,          // 曲中の開始小節番号（表示用）
   measures: 4,              // 小節数（0=手動モード）。endの場合は1固定
-  tempo: 120,               // BPM
+  tempo: 120,               // セクション開始時の BPM
+  tempoEnd: 100,             // セクション終了時の BPM（省略時 = tempo、定速）
+  tempoCurve: 0,             // -1.0〜+1.0、変化カーブ（既定 0=線形）。type='end' では未使用
   timeSig: 4                // 拍子（1〜8）
 }
 ```
@@ -232,7 +236,52 @@ Oscillator(sine)                      → Gain(env) ─┘
 ```
 
 ### エクスポート形式
-JSON → Base64エンコード。バージョン: `v:4`
+JSON → Base64エンコード。バージョン: `v:4`（`tempoEnd` / `tempoCurve` を含む。読込側で未定義なら定速扱いとしてデフォルト補完）。
+
+---
+
+## accel / rit（テンポ変化）
+
+通常セクションの中で開始テンポから終了テンポへ滑らかに変化させる機能。指揮者ごとの揺らし方の違いをカーブスライダーで表現する。
+
+### データ表現
+
+セクションの `tempo`（開始）と `tempoEnd`（終了）、`tempoCurve`（カーブ）の 3 値で表す。`tempoEnd === tempo` または `tempoEnd` 未定義の場合は定速。
+
+### 進捗とカーブ式
+
+```
+t  = (measureIndex * timeSig + beatIndex) / (measures * timeSig)   // 0〜1
+v  = tempoCurve                                                     // -1〜+1
+t' = t ^ (2 ^ v)                                                    // v=0→線形, v=-1→t^0.5, v=+1→t^2
+BPM(t) = tempo + (tempoEnd - tempo) * t'
+```
+
+- スライダー中央 (v=0): 線形（均等にテンポ変化）
+- スライダー左 (v<0): 早めに変化（前半に大きく動く）
+- スライダー右 (v>0): 遅めに変化（後半に大きく動く）
+- `measures = 0`（手動小節モード）の場合は定速にフォールバック（進捗が定義できないため）
+
+### スケジューラへの組み込み
+
+- `createPerformanceTransport.scheduleNext(time)` 内で `currentTempo = tempoAt(sec, progress(...))` に逐次更新
+- `advance()` で `nextNoteTime += 60 / currentTempo`
+- `scheduleSubdivision(time, beatDuration, ...)` の `beatDuration = 60 / currentTempo`
+- `enterMain()` の `currentTempo = clampTempo(sec.tempo)` はセクション先頭の初期化として残す
+
+### 曲編集 UI
+
+通常セクションの編集行に以下を追加:
+
+- **終了テンポ** 数値入力（既定値は `tempo` と同じ。空欄なら定速扱い）
+- **カーブ** スライダー（`min=-1 max=1 step=0.1 value=0`）
+
+縦長になりすぎないよう、accel/rit 入力は **「詳細を開く」トグル / 折りたたみ行** に隠す方針。エンドセクションには表示しない。
+
+### ビジュアル
+
+- 再生中は BPM 数値を瞬時値で更新（`pUpd()` を `scheduleNext` 内で呼ぶ。`Math.round` で整数化）
+- テンポ名の隣に方向アイコン `↗`（accel）/ `↘`（rit）/ なし（定速）
 
 ---
 
@@ -275,8 +324,14 @@ JSON → Base64エンコード。バージョン: `v:4`
 
 - **主要コントロール**（Start/Stop ボタン、BPM 調整、Subdivision トグル）は**画面下半分**に優先配置
 - タップターゲットは最低 **44×44px** を確保
-- 再生ボタン（`.pb`）は 64×64px
-- ±1/±5/±10 ボタン（`.fb`）は **min-width / min-height ともに 44px**（タップターゲット要件を満たす）
+- ±1/±5/±10 ボタン（`.fb`）は **min-width / min-height ともに 44px**
+
+### スタートボタンと Tap Tempo のレイアウト
+
+- スタートボタン（`.pb`）は **角丸四角（pill）** 形状で 220×64px、`border-radius: 32px`
+- **テンポページ**: スタートボタンの左に Tap Tempo を横並び。Tap Tempo は同じ pill 形状で **110×64px（高さ同じ、幅狭）**。`.pw` を flex コンテナにして `[Tap] [Start]` を中央揃え
+- **パフォーマンスページ**: タップテンポなし。スタートボタン単独を中央配置（同じ 220×64 サイズ）
+- iPhone SE（375×667）で破綻しないこと。狭幅では gap や周辺マージンを縮めて対応
 
 ### タッチ・スクロール挙動
 
