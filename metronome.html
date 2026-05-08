@@ -41,6 +41,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .bv.f1{color:var(--ac)}.bv.f2{color:var(--ci)}.bv.f3{color:var(--ec)}.bv.f4{color:var(--endc)}
 .bs{font-size:10px;color:var(--dm);letter-spacing:.2em;text-transform:uppercase;text-align:center;margin-top:2px}
 .tn{font-family:'Instrument Serif',serif;font-style:italic;font-size:13px;color:var(--dm);text-align:center;margin-top:3px;min-height:16px}
+.trend{display:inline-block;margin-left:5px;color:var(--ac);font-family:'DM Mono',monospace;font-size:12px;font-style:normal}
 .stb{text-align:center;margin-bottom:4px;min-height:14px}
 .stb span{font-family:'Instrument Serif',serif;font-size:13px;color:var(--dm);font-style:italic}
 .sb{text-align:center;margin-bottom:8px;min-height:20px}
@@ -92,8 +93,10 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .rs{background:var(--sf);border:1px solid var(--bd);border-radius:8px;min-height:44px;padding:3px 10px;color:var(--tx);font-family:'DM Mono',monospace;font-size:10px;outline:none;-webkit-appearance:none;appearance:none;cursor:pointer;min-width:64px;text-align:center}
 .rs:focus{border-color:var(--ac)}
 .ra{color:var(--dm);font-size:11px}
-.pw{display:flex;justify-content:center;margin-bottom:8px}
+.pw{display:flex;justify-content:center;align-items:center;gap:10px;margin-bottom:8px}
 .pb{width:64px;height:64px;border-radius:50%;border:2px solid var(--ac);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;position:relative;touch-action:manipulation}
+#tab-metro .pb,#tab-perf .pb{width:220px;height:64px;border-radius:32px}
+#tab-metro .tapb{height:64px;min-width:110px;border-radius:32px;margin:0}
 .pb:hover{background:var(--as);box-shadow:0 0 16px var(--ag)}
 .pb:active{transform:scale(.94)}.pb.on{background:var(--ac)}
 .pi{width:18px;height:18px}
@@ -102,7 +105,6 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .pr{position:absolute;inset:-5px;border-radius:50%;border:1px solid var(--ac);opacity:0;pointer-events:none}
 .pr.pulse{animation:po .3s ease-out}
 @keyframes po{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.4);opacity:0}}
-.tapw{text-align:center;margin-top:4px}
 .tapb{min-height:44px;padding:10px 18px;border-radius:22px;border:1px solid var(--bd);background:transparent;color:var(--dm);font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .12s}
 .tapb:hover{border-color:var(--dm);color:var(--tx)}.tapb:active{transform:scale(.95);border-color:var(--ac);color:var(--ac)}
 .sh{display:flex;gap:6px;margin-bottom:10px}
@@ -130,6 +132,11 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .sfs{display:grid;gap:4px}
 .sfs.f4{grid-template-columns:1fr 1fr 1fr 1fr}
 .sfs.f2{grid-template-columns:1fr 1fr}
+.sdet{margin-top:6px;border-top:1px solid var(--bd);padding-top:5px}
+.sdet summary{min-height:28px;display:flex;align-items:center;color:var(--dm);font-size:9px;cursor:pointer;list-style:none;user-select:none}
+.sdet summary::-webkit-details-marker{display:none}
+.sdet summary::before{content:'⋯';margin-right:6px;color:var(--ac)}
+.curvev{font-size:8px;color:var(--dm);margin-top:3px;text-align:right}
 .fg label{display:block;font-size:7px;color:var(--dm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px}
 .fg input,.fg select{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:3px;padding:3px 4px;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;outline:none}
 .fg input:focus,.fg select:focus{border-color:var(--ac)}
@@ -175,8 +182,8 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
   .dot{width:16px;height:16px}
   .subdot{width:4px;height:4px}
   .subctl{margin-bottom:8px}
-  .orow,.rrow,.fine,.pw,.tapw{margin-bottom:6px}
-  .pb{width:60px;height:60px}
+  .orow,.rrow,.fine,.pw{margin-bottom:6px}
+  #tab-metro .pb,#tab-perf .pb{width:220px;height:64px}
 }
 @media (orientation:landscape) and (max-height:500px){
   body{overflow:auto}
@@ -209,15 +216,14 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
       </div>
       <div class="tsw"><div class="tsl">拍子</div><div class="tsv" id="mTs">4/4</div><input type="range" id="mTsSl" min="1" max="8" value="4" style="max-width:200px"></div>
       <div class="subctl"><div class="tsl">Subdivision</div><button class="subbtn" id="mSubBtn" type="button">—</button></div>
-      <div class="pw"><button class="pb" id="mPb"><div class="pr" id="mPr"></div><svg class="pi" id="mPi" viewBox="0 0 24 24"><polygon class="tri" points="8,5 20,12 8,19"/></svg></button></div>
-      <div class="tapw"><button class="tapb" id="tapB">Tap Tempo</button></div>
+      <div class="pw"><button class="tapb" id="tapB">Tap Tempo</button><button class="pb" id="mPb"><div class="pr" id="mPr"></div><svg class="pi" id="mPi" viewBox="0 0 24 24"><polygon class="tri" points="8,5 20,12 8,19"/></svg></button></div>
     </div>
   </div>
 
   <div class="tc play-tab" id="tab-perf">
     <div class="play-top">
       <div class="stb" id="pST"></div>
-      <div class="bv" id="pBv">120</div><div class="bs">bpm</div><div class="tn" id="pTn">Allegro</div>
+      <div class="bv" id="pBv">120</div><div class="bs">bpm</div><div class="tn"><span id="pTn">Allegro</span><span class="trend" id="pTrend"></span></div>
       <div class="sb" id="pSB"></div>
       <div class="dots" id="pDt"></div>
     </div>
@@ -319,35 +325,46 @@ function playClick(type,time,opts={}){
   const c=ea();
   const when=Math.max(time,c.currentTime);
   const defaults={
-    accent:{freq:2200,q:12,noisePeak:.9,tonePeak:.25,decay:.05},
-    normal:{freq:1100,q:12,noisePeak:.6,tonePeak:.18,decay:.04},
-    ci:{freq:1500,q:14,noisePeak:.7,tonePeak:.22,decay:.045},
-    sub:{freq:800,q:10,noisePeak:.35,tonePeak:.08,decay:.025}
+    accent:{f0:220,f:[900,1500,2700],q:10,vPeak:.45,cPeak:.5,vDecay:.10,cDecay:.020},
+    normal:{f0:180,f:[730,1300,2400],q:10,vPeak:.38,cPeak:.4,vDecay:.08,cDecay:.016},
+    ci:{f0:260,f:[320,2200,2900],q:10,vPeak:.4,cPeak:.45,vDecay:.09,cDecay:.018},
+    sub:{f0:150,f:[570,900,2400],q:10,vPeak:.18,cPeak:.18,vDecay:.05,cDecay:.012}
   };
   const d=defaults[type]||defaults.normal;
-  const freq=opts.frequency??d.freq;
+  const f0=opts.f0??opts.frequency??d.f0;
+  const formants=opts.formants??d.f;
   const q=opts.Q??d.q;
-  const noisePeak=opts.noiseGain??d.noisePeak;
-  const tonePeak=opts.toneGain??d.tonePeak;
-  const decay=opts.toneDecay??d.decay;
-  const noise=c.createBufferSource(),bpf=c.createBiquadFilter(),noiseGain=c.createGain();
+  const vPeak=opts.vowelPeak??opts.toneGain??d.vPeak;
+  const cPeak=opts.consonantPeak??opts.noiseGain??d.cPeak;
+  const vDecay=opts.vowelDecay??opts.toneDecay??d.vDecay;
+  const cDecay=opts.consonantDecay??d.cDecay;
+  const osc=c.createOscillator(),vowelGain=c.createGain();
+  osc.type=opts.waveform||'square';
+  osc.frequency.value=f0;
+  vowelGain.gain.setValueAtTime(.0001,when);
+  vowelGain.gain.exponentialRampToValueAtTime(vPeak,when+.001);
+  vowelGain.gain.exponentialRampToValueAtTime(.0001,when+vDecay);
+  formants.forEach(fc=>{
+    const bpf=c.createBiquadFilter();
+    bpf.type='bandpass';
+    bpf.frequency.value=fc;
+    bpf.Q.value=q;
+    osc.connect(bpf);
+    bpf.connect(vowelGain);
+  });
+  vowelGain.connect(masterGain);
+  osc.start(when);
+  osc.stop(when+vDecay+.02);
+  const noise=c.createBufferSource(),hpf=c.createBiquadFilter(),consonantGain=c.createGain();
   noise.buffer=getNoiseBuffer(c);
-  bpf.type='bandpass';
-  bpf.frequency.value=freq;
-  bpf.Q.value=q;
-  noiseGain.gain.setValueAtTime(.0001,when);
-  noiseGain.gain.exponentialRampToValueAtTime(noisePeak,when+.001);
-  noiseGain.gain.exponentialRampToValueAtTime(.0001,when+decay);
-  noise.connect(bpf);bpf.connect(noiseGain);noiseGain.connect(masterGain);
-  noise.start(when);noise.stop(when+decay+.02);
-  const tone=c.createOscillator(),toneGain=c.createGain();
-  tone.type=opts.waveform||'sine';
-  tone.frequency.value=freq;
-  toneGain.gain.setValueAtTime(.0001,when);
-  toneGain.gain.exponentialRampToValueAtTime(tonePeak,when+.001);
-  toneGain.gain.exponentialRampToValueAtTime(.0001,when+decay*.7);
-  tone.connect(toneGain);toneGain.connect(masterGain);
-  tone.start(when);tone.stop(when+decay+.02);
+  hpf.type='highpass';
+  hpf.frequency.value=3000;
+  consonantGain.gain.setValueAtTime(.0001,when);
+  consonantGain.gain.exponentialRampToValueAtTime(cPeak,when+.0008);
+  consonantGain.gain.exponentialRampToValueAtTime(.0001,when+cDecay);
+  noise.connect(hpf);hpf.connect(consonantGain);consonantGain.connect(masterGain);
+  noise.start(when);
+  noise.stop(when+cDecay+.02);
 }
 function queueVisual(evt){
   noteQueue.push(evt);
@@ -394,6 +411,7 @@ function applyVisual(evt){
   }
   if(evt.panel==='perf'){
     if(evt.kind==='sub'){paintSubdot('pDt',evt.beatIndex,evt.subIndex);return}
+    if(evt.kind==='tempo'){pBpm=evt.bpm;pUpd();return}
     paintDots('pDt',evt.beatIndex,evt.dotClass||'on');
     flashBpm('pBv',evt.flashClass||'f1');
     pulseRing('pPr');
@@ -479,6 +497,30 @@ function assignLabels(){
 function tN(b){if(b<40)return'Grave';if(b<55)return'Largo';if(b<66)return'Larghetto';if(b<76)return'Adagio';if(b<92)return'Andante';if(b<108)return'Moderato';if(b<120)return'Allegretto';if(b<156)return'Allegro';if(b<176)return'Vivace';if(b<200)return'Presto';return'Prestissimo'}
 function clampTempo(v){return Math.max(20,Math.min(400,v||120))}
 function clampBeats(v){return Math.max(1,Math.min(8,v||4))}
+function clampCurve(v){return Math.max(-1,Math.min(1,Number.isFinite(v)?v:0))}
+function normalizeSection(s){
+  const n={type:s.type||s.tp||'main',label:s.label||'',name:s.name||s.n||'',startMeasure:s.startMeasure??s.sm??1,measures:s.measures??s.m??0,tempo:clampTempo(s.tempo??s.t??120),timeSig:clampBeats(s.timeSig??s.ts??4)};
+  if(n.type==='main'){
+    n.tempoEnd=clampTempo(s.tempoEnd??s.te??n.tempo);
+    n.tempoCurve=clampCurve(parseFloat(s.tempoCurve??s.tc??0));
+  }else{
+    n.measures=1;
+  }
+  return n;
+}
+function normalizeSections(list){return(list||[]).map(normalizeSection)}
+function progress(sec,beatIndex,measureIndex){
+  if(!sec||sec.measures<=0)return 0;
+  const totalBeats=sec.measures*clampBeats(sec.timeSig);
+  return Math.min(1,(measureIndex*clampBeats(sec.timeSig)+beatIndex)/totalBeats);
+}
+function tempoAt(sec,t){
+  const start=clampTempo(sec&&sec.tempo),end=clampTempo(sec&&(sec.tempoEnd??sec.tempo));
+  if(start===end)return start;
+  const v=clampCurve(parseFloat(sec.tempoCurve??0));
+  const tt=Math.pow(t,Math.pow(2,v));
+  return start+(end-start)*tt;
+}
 function getSubdivisionState(key){return SUBDIVISION_STATES.find(s=>s.key===key)||SUBDIVISION_STATES[0]}
 function cycleSubdivision(key){
   const idx=SUBDIVISION_STATES.findIndex(s=>s.key===key);
@@ -582,7 +624,13 @@ let rF=0,rT=0;
 let lib=[],curSId=null;
 let lastTmp=120,lastBts=4;
 
-function pUpd(){$('pBv').textContent=pBpm;$('pTn').textContent=tN(pBpm)}
+function updateTempoTrend(){
+  const el=$('pTrend'),sec=secs[curS];
+  if(!el||!sec||sec.type!=='main'||isCi||isEc){if(el)el.textContent='';return}
+  const end=sec.tempoEnd??sec.tempo;
+  el.textContent=end>sec.tempo?'↗':end<sec.tempo?'↘':'';
+}
+function pUpd(){$('pBv').textContent=pBpm;$('pTn').textContent=tN(pBpm);updateTempoTrend()}
 function pDots(n,subdivisionKey=pSubdivision){renderDots('pDt',n,subdivisionKey)}
 function pUpdSubdivision(){$('pSubBtn').textContent=getSubdivisionState(pSubdivision).label;if(!isCi&&!isEc)pDots(pBeats,pSubdivision)}
 function pSetPlay(){$('pPb').classList.add('on');$('pPi').innerHTML='<rect class="bar" x="6" y="5" width="4" height="14" rx="1"/><rect class="bar" x="14" y="5" width="4" height="14" rx="1"/>'}
@@ -677,6 +725,7 @@ function createPerformanceTransport(){
       curS=-1;
       curM=0;
       upSB();
+      updateTempoTrend();
       renderSL();
       syncWakeLock();
     },
@@ -726,10 +775,12 @@ function createPerformanceTransport(){
         queueVisual({panel:'perf',time,beatIndex:0,dotClass:'ed',flashClass:'f4'});
         return;
       }
+      this.currentTempo=clampTempo(tempoAt(sec,progress(sec,this.beatIndex,this.measureIndex)));
       const accent=(this.currentBeats===1)||this.beatIndex===0;
       const beatDuration=60/this.currentTempo;
       playClick(accent?'accent':'normal',time);
       scheduleSubdivision(time,beatDuration,pSubdivision,'perf',this.beatIndex);
+      queueVisual({panel:'perf',time,kind:'tempo',bpm:Math.round(this.currentTempo)});
       queueVisual({panel:'perf',time,beatIndex:this.beatIndex,dotClass:'on',flashClass:'f1'});
     },
     advance(){
@@ -818,6 +869,7 @@ function pStop(){
   curS=-1;
   curM=0;
   upSB();
+  updateTempoTrend();
   renderSL();
   syncWakeLock();
 }
@@ -844,8 +896,10 @@ function renderSL(){
         <div class="sfs f2"><div class="fg"><label>開始小節</label><input type="number" min="1" max="999" value="${s.startMeasure}" data-i="${i}" data-f="startMeasure"></div><div class="fg"><label>テンポ</label><input type="number" min="20" max="400" value="${s.tempo}" data-i="${i}" data-f="tempo"></div></div>`;
     }else{
       const mv=`<div class="smv"><button class="mvb" data-d="up" data-i="${i}">▲</button><button class="mvb" data-d="dn" data-i="${i}">▼</button></div>`;
+      const te=s.tempoEnd??s.tempo,tc=s.tempoCurve??0,open=te!==s.tempo||tc!==0?' open':'';
       c.innerHTML=`<div class="sch">${mv}<span class="slet">${s.label}</span><input class="sni" type="text" value="${s.name}" placeholder="セクション名" data-i="${i}" data-f="name"><button class="sdel" data-i="${i}">×</button></div>
-        <div class="sfs f4"><div class="fg"><label>開始小節</label><input type="number" min="1" max="999" value="${s.startMeasure}" data-i="${i}" data-f="startMeasure"></div><div class="fg"><label>小節数</label><input type="number" min="0" max="999" value="${s.measures}" data-i="${i}" data-f="measures"></div><div class="fg"><label>テンポ</label><input type="number" min="20" max="400" value="${s.tempo}" data-i="${i}" data-f="tempo"></div><div class="fg"><label>拍子</label><select data-i="${i}" data-f="timeSig">${[1,2,3,4,5,6,7,8].map(t=>`<option value="${t}"${t===s.timeSig?' selected':''}>${t===1?'1':t+'/4'}</option>`).join('')}</select></div></div>`;
+        <div class="sfs f4"><div class="fg"><label>開始小節</label><input type="number" min="1" max="999" value="${s.startMeasure}" data-i="${i}" data-f="startMeasure"></div><div class="fg"><label>小節数</label><input type="number" min="0" max="999" value="${s.measures}" data-i="${i}" data-f="measures"></div><div class="fg"><label>テンポ</label><input type="number" min="20" max="400" value="${s.tempo}" data-i="${i}" data-f="tempo"></div><div class="fg"><label>拍子</label><select data-i="${i}" data-f="timeSig">${[1,2,3,4,5,6,7,8].map(t=>`<option value="${t}"${t===s.timeSig?' selected':''}>${t===1?'1':t+'/4'}</option>`).join('')}</select></div></div>
+        <details class="sdet"${open}><summary>詳細</summary><div class="sfs f2"><div class="fg"><label>終了テンポ</label><input type="number" min="20" max="400" value="${te}" data-i="${i}" data-f="tempoEnd"></div><div class="fg"><label>カーブ</label><input type="range" min="-1" max="1" step="0.1" value="${tc}" data-i="${i}" data-f="tempoCurve"><div class="curvev" data-cv="${i}">${Number(tc).toFixed(1)}</div></div></div></details>`;
     }
     $('sList').appendChild(c);
   });
@@ -855,12 +909,22 @@ function renderSL(){
       if(isNaN(i))return;
       if(f==='name')secs[i].name=e.target.value;
       else if(f==='startMeasure'){secs[i].startMeasure=Math.max(1,parseInt(e.target.value,10)||1);e.target.value=secs[i].startMeasure}
-      else if(f==='tempo'){secs[i].tempo=clampTempo(parseInt(e.target.value,10)||120);e.target.value=secs[i].tempo}
+      else if(f==='tempo'){const old=secs[i].tempo;secs[i].tempo=clampTempo(parseInt(e.target.value,10)||120);if(secs[i].tempoEnd==null||secs[i].tempoEnd===old)secs[i].tempoEnd=secs[i].tempo;e.target.value=secs[i].tempo}
+      else if(f==='tempoEnd'){secs[i].tempoEnd=e.target.value===''?secs[i].tempo:clampTempo(parseInt(e.target.value,10)||secs[i].tempo);e.target.value=secs[i].tempoEnd}
+      else if(f==='tempoCurve'){secs[i].tempoCurve=clampCurve(parseFloat(e.target.value));e.target.value=secs[i].tempoCurve;const cv=document.querySelector(`[data-cv="${i}"]`);if(cv)cv.textContent=secs[i].tempoCurve.toFixed(1)}
       else if(f==='timeSig')secs[i].timeSig=clampBeats(parseInt(e.target.value,10));
       else if(f==='measures'){secs[i].measures=Math.max(0,parseInt(e.target.value,10)||0);e.target.value=secs[i].measures}
       assignLabels();
       saveCur();
       upRange();
+    });
+    if(el.dataset.f==='tempoCurve')el.addEventListener('input',e=>{
+      const i=parseInt(e.target.dataset.i,10);
+      if(isNaN(i))return;
+      secs[i].tempoCurve=clampCurve(parseFloat(e.target.value));
+      const cv=document.querySelector(`[data-cv="${i}"]`);
+      if(cv)cv.textContent=secs[i].tempoCurve.toFixed(1);
+      saveCur();
     });
   });
   $('sList').querySelectorAll('.sdel').forEach(el=>{
@@ -887,7 +951,7 @@ $('addS').addEventListener('click',()=>{
   const ins=endIdx>=0?endIdx:secs.length;
   const prev=ins>0?secs[ins-1]:null;
   const sm=prev?(prev.startMeasure+(prev.measures||4)):1;
-  secs.splice(ins,0,{type:'main',label:'',name:'',startMeasure:sm,measures:4,tempo:mBpm,timeSig:mBeats});
+  secs.splice(ins,0,{type:'main',label:'',name:'',startMeasure:sm,measures:4,tempo:mBpm,tempoEnd:mBpm,tempoCurve:0,timeSig:mBeats});
   assignLabels();
   renderSL();
   saveCur();
@@ -909,9 +973,9 @@ $('addE').addEventListener('click',()=>{
 });
 
 function saveLib(){try{localStorage.setItem('metronome-lib',JSON.stringify(lib))}catch(e){}}
-function loadLib(){try{const r=localStorage.getItem('metronome-lib');if(r)lib=JSON.parse(r)}catch(e){lib=[]}}
+function loadLib(){try{const r=localStorage.getItem('metronome-lib');if(r)lib=JSON.parse(r);lib=lib.map(s=>({...s,sections:normalizeSections(s.sections)}))}catch(e){lib=[]}}
 function saveCur(){if(!curSId)return;const i=lib.findIndex(s=>s.id===curSId);if(i>=0){lib[i].title=sTitle;lib[i].sections=JSON.parse(JSON.stringify(secs))}saveLib()}
-function loadSong(s){curSId=s.id;sTitle=s.title;$('sT').value=sTitle;secs=JSON.parse(JSON.stringify(s.sections||[]));assignLabels();curS=-1;curM=0;rF=0;rT=Math.max(0,secs.length-1);updateAll()}
+function loadSong(s){curSId=s.id;sTitle=s.title;$('sT').value=sTitle;secs=normalizeSections(JSON.parse(JSON.stringify(s.sections||[])));assignLabels();curS=-1;curM=0;rF=0;rT=Math.max(0,secs.length-1);updateAll()}
 
 function renderLL(){
   const l=$('lList');
@@ -965,8 +1029,8 @@ $('svL').addEventListener('click',()=>{
   renderLL();
 });
 
-function enc(s){return btoa(unescape(encodeURIComponent(JSON.stringify({v:4,title:s.title||'',sections:(s.sections||[]).map(x=>({tp:x.type,n:x.name,sm:x.startMeasure,m:x.measures,t:x.tempo,ts:x.timeSig}))}))))}
-function dec(c){try{const d=JSON.parse(decodeURIComponent(escape(atob(c.trim()))));if(!d.sections)return null;return{title:d.title||'',sections:d.sections.map(s=>({type:s.tp||'main',label:'',name:s.n||'',startMeasure:s.sm||1,measures:s.m||0,tempo:s.t||120,timeSig:s.ts||4}))}}catch(e){return null}}
+function enc(s){return btoa(unescape(encodeURIComponent(JSON.stringify({v:4,title:s.title||'',sections:(s.sections||[]).map(x=>({tp:x.type,n:x.name,sm:x.startMeasure,m:x.measures,t:x.tempo,te:x.tempoEnd,tc:x.tempoCurve,ts:x.timeSig}))}))))}
+function dec(c){try{const d=JSON.parse(decodeURIComponent(escape(atob(c.trim()))));if(!d.sections)return null;return{title:d.title||'',sections:normalizeSections(d.sections)}}catch(e){return null}}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500)}
 $('exB').addEventListener('click',()=>{sTitle=$('sT').value;saveCur();const s=curSId?lib.find(x=>x.id===curSId):null;$('exA').value=enc(s||{title:sTitle,sections:secs});$('exM').classList.add('show')});
 $('exCl').addEventListener('click',()=>$('exM').classList.remove('show'));
