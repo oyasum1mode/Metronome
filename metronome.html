@@ -116,7 +116,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .sab.pri{border-color:var(--ac);color:var(--ac);background:var(--as)}
 .sab.danger:hover{border-color:var(--red);color:var(--red)}
 .slist{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
-.sc{background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:8px 10px;transition:border-color .15s}
+.sc{background:var(--sf);border:1px solid var(--bd);border-radius:7px;padding:7px 9px;transition:border-color .15s}
 .sc.playing{border-color:var(--ac);box-shadow:0 0 8px rgba(240,94,35,.08)}
 .sc.is-end{border-left:2px solid var(--endc)}
 .sch{display:flex;align-items:center;gap:5px;margin-bottom:6px}
@@ -129,17 +129,17 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .mvb:hover{border-color:var(--ac);color:var(--ac)}
 .sdel{width:20px;height:20px;border-radius:50%;border:1px solid var(--bd);background:transparent;color:var(--mt);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;transition:all .12s}
 .sdel:hover{border-color:var(--red);color:var(--red)}
-.sfs{display:grid;gap:4px}
+.sfs{display:grid;gap:3px}
 .sfs.f4{grid-template-columns:1fr 1fr 1fr 1fr}
 .sfs.f2{grid-template-columns:1fr 1fr}
-.sdet{margin-top:6px;border-top:1px solid var(--bd);padding-top:5px}
-.sdet summary{min-height:28px;display:flex;align-items:center;color:var(--dm);font-size:9px;cursor:pointer;list-style:none;user-select:none}
+.sdet{margin-top:5px;border-top:1px solid var(--bd);padding-top:4px}
+.sdet summary{min-height:26px;display:flex;align-items:center;color:var(--dm);font-size:9px;cursor:pointer;list-style:none;user-select:none}
 .sdet summary::-webkit-details-marker{display:none}
 .sdet summary::before{content:'⋯';margin-right:6px;color:var(--ac)}
 .curvev{font-size:8px;color:var(--dm);margin-top:3px;text-align:right}
 .ofb{display:flex;justify-content:center;gap:6px;margin:6px 0 4px;flex-wrap:wrap}
 #pOf0{min-width:120px}
-.fg label{display:block;font-size:7px;color:var(--dm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px}
+.fg label{display:block;font-size:7px;color:var(--dm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:1px}
 .fg input,.fg select{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:3px;padding:3px 4px;color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;outline:none}
 .fg input:focus,.fg select:focus{border-color:var(--ac)}
 .fg select{-webkit-appearance:none;appearance:none;cursor:pointer}
@@ -172,6 +172,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .mb:hover{border-color:var(--dm);color:var(--tx)}.mb.pri{border-color:var(--ac);color:var(--ac);background:var(--as)}
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--ac);color:var(--bg);padding:6px 16px;border-radius:16px;font-size:10px;font-family:'DM Mono',monospace;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
 .toast.show{opacity:1}
+.bt-note{font-size:9px;color:var(--mt);text-align:center;margin-top:14px;padding:0 8px;line-height:1.5}
 #tab-song.active,#tab-lib.active{display:block;overflow:auto;padding-bottom:8px}
 @media (max-height:700px){
   .hd{margin-bottom:6px}
@@ -268,6 +269,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
   <div class="tc" id="tab-lib">
     <button class="nsb" id="newS">+ 新しい曲を作成</button>
     <div class="ll" id="lList"></div>
+    <div class="bt-note">Bluetooth スピーカー使用時は音が少し遅れる場合があります（接続側の固定遅延）。</div>
   </div>
 </div>
 
@@ -625,7 +627,17 @@ function updateTempoTrend(){
   const end=sec.tempoEnd??sec.tempo;
   el.textContent=end>sec.tempo?'↗':end<sec.tempo?'↘':'';
 }
-function pUpd(){$('pBv').textContent=pBpm;$('pTn').textContent=tN(pBpm);updateTempoTrend()}
+function pUpd(){
+  let displayBpm=pBpm;
+  if(!pPlaying){
+    const idx=curS>=0?curS:rF;
+    const sec=secs[idx];
+    if(sec&&sec.type==='main')displayBpm=clampTempo(sec.tempo+tempoOffset);
+  }
+  $('pBv').textContent=displayBpm;
+  $('pTn').textContent=tN(displayBpm);
+  updateTempoTrend();
+}
 function updateOffsetUI(){
   const lbl=tempoOffset===0?'In tempo':`In tempo (${tempoOffset>0?'+':''}${tempoOffset})`;
   $('pOf0').textContent=lbl;

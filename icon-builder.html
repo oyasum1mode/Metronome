@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Icon Builder — Metronome Pro</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0c;color:#eee;padding:24px;line-height:1.6}
+h1{font-size:18px;margin:0 0 16px}
+p{font-size:13px;color:#8a8a8a;margin:8px 0}
+.row{display:flex;gap:16px;flex-wrap:wrap;margin-top:20px}
+.card{background:#1a1a1c;border-radius:8px;padding:16px;text-align:center;min-width:200px}
+.card canvas{display:block;margin:0 auto 12px;background:#0a0a0c;max-width:100%;height:auto}
+button{background:#f05e23;color:#fff;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:13px}
+button:hover{background:#ff7a45}
+code{background:#1a1a1c;padding:2px 6px;border-radius:3px;font-size:12px}
+</style>
+</head>
+<body>
+<h1>Metronome Pro — Icon Builder</h1>
+<p>3 サイズの PNG を書き出し、<code>icons/</code> 配下に保存してください。</p>
+<p>保存名は: <code>icons/icon-192.png</code> / <code>icons/icon-512.png</code> / <code>icons/apple-touch-icon.png</code></p>
+<div class="row" id="row"></div>
+
+<script>
+const SIZES = [
+  {size: 192, file: 'icon-192.png'},
+  {size: 512, file: 'icon-512.png'},
+  {size: 180, file: 'apple-touch-icon.png'},
+];
+
+async function load(){
+  const res = await fetch('icons/icon.svg');
+  const svgText = await res.text();
+  const svgBlob = new Blob([svgText], {type: 'image/svg+xml'});
+  const svgUrl = URL.createObjectURL(svgBlob);
+
+  const img = new Image();
+  await new Promise((ok, ng) => { img.onload=ok; img.onerror=ng; img.src=svgUrl; });
+
+  const row = document.getElementById('row');
+  for(const {size, file} of SIZES){
+    const card = document.createElement('div');
+    card.className = 'card';
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, size, size);
+    const label = document.createElement('div');
+    label.textContent = `${size}×${size} → ${file}`;
+    label.style.marginBottom = '8px';
+    label.style.fontSize = '13px';
+    const btn = document.createElement('button');
+    btn.textContent = 'ダウンロード';
+    btn.addEventListener('click', () => {
+      canvas.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = file;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, 'image/png');
+    });
+    card.appendChild(canvas);
+    card.appendChild(label);
+    card.appendChild(btn);
+    row.appendChild(card);
+  }
+  URL.revokeObjectURL(svgUrl);
+}
+load().catch(e => {
+  document.body.innerHTML += `<p style="color:#ef4444">読み込みエラー: ${e.message}</p>`;
+});
+</script>
+</body>
+</html>
