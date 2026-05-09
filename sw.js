@@ -1,4 +1,4 @@
-const CACHE_NAME='metronome-pro-v7';
+const CACHE_NAME='metronome-pro-v8';
 const APP_SHELL=['./','./index.html','./metronome.html','./manifest.json'];
 const FONT_HOSTS=['fonts.googleapis.com','fonts.gstatic.com'];
 
