@@ -77,6 +77,9 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .subbtn{min-width:92px;min-height:36px;padding:8px 14px;border-radius:18px;border:1px solid var(--bd);background:var(--sf);color:var(--tx);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;transition:all .12s;touch-action:manipulation}
 .subbtn:hover{border-color:var(--ac);color:var(--ac)}
 .subbtn:active{transform:scale(.96)}
+.subgrp{display:flex;gap:4px;flex:1;max-width:280px;margin:0 auto}
+.subgrp .subbtn{flex:1;min-width:0;min-height:36px;padding:8px 4px;font-size:11px}
+.subbtn.active{background:var(--as);border-color:var(--ac);color:var(--ac)}
 .orow{display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
 .tgg{display:flex;align-items:center;gap:7px}
 .tgl{font-size:10px;color:var(--dm);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
@@ -218,8 +221,8 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
         <button class="fb" data-d="-10">−10</button><button class="fb" data-d="-5">−5</button><button class="fb" data-d="-1">−1</button>
         <button class="fb" data-d="1">+1</button><button class="fb" data-d="5">+5</button><button class="fb" data-d="10">+10</button>
       </div>
-      <div class="tsw"><div class="tsl">拍子</div><div class="tsv" id="mTs">4/4</div><input type="range" id="mTsSl" min="1" max="8" value="4" style="max-width:200px"></div>
-      <div class="subctl"><div class="tsl">Subdivision</div><button class="subbtn" id="mSubBtn" type="button">—</button></div>
+      <div class="tsw"><div class="tsl">拍子</div><div class="tsv" id="mTs">4/4</div><select id="mTsSel" class="rs" style="max-width:120px"><option value="1">1</option><option value="2/4">2/4</option><option value="3/4">3/4</option><option value="4/4" selected>4/4</option><option value="5/4">5/4</option><option value="6/4">6/4</option><option value="7/4">7/4</option><option value="8/4">8/4</option><option value="9/4">9/4</option><option value="6/8">6/8</option><option value="9/8">9/8</option><option value="12/8">12/8</option></select></div>
+      <div class="subctl"><div class="tsl">Subdivision</div><div class="subgrp" id="mSubGrp" role="radiogroup"><button class="subbtn" type="button" data-v="none">OFF</button><button class="subbtn" type="button" data-v="8th">8th</button><button class="subbtn" type="button" data-v="triplet">Tri</button><button class="subbtn" type="button" data-v="16th">16th</button></div></div>
       <div class="pw"><button class="tapb" id="tapB">Tap Tempo</button><button class="pb" id="mPb"><div class="pr" id="mPr"></div><svg class="pi" id="mPi" viewBox="0 0 24 24"><polygon class="tri" points="8,5 20,12 8,19"/></svg></button></div>
     </div>
   </div>
@@ -245,7 +248,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
       <div class="rrow" id="rR">
         <span class="rl">範囲</span><select class="rs" id="rF"></select><span class="ra">→</span><select class="rs" id="rT"></select>
       </div>
-      <div class="subctl"><div class="tsl">Subdivision</div><button class="subbtn" id="pSubBtn" type="button">—</button></div>
+      <div class="subctl"><div class="tsl">Subdivision</div><div class="subgrp" id="pSubGrp" role="radiogroup"><button class="subbtn" type="button" data-v="off">OFF</button><button class="subbtn" type="button" data-v="on">ON</button></div></div>
       <div class="pw"><button class="pb" id="pPb"><div class="pr" id="pPr"></div><svg class="pi" id="pPi" viewBox="0 0 24 24"><polygon class="tri" points="8,5 20,12 8,19"/></svg></button></div>
     </div>
   </div>
@@ -289,6 +292,11 @@ const SUBDIVISION_STATES=[
   {key:'triplet',label:'Tri',parts:3},
   {key:'16th',label:'16th',parts:4}
 ];
+const TIME_SIG_OPTIONS=[
+  [1,4,'1'],[2,4,'2/4'],[3,4,'3/4'],[4,4,'4/4'],
+  [5,4,'5/4'],[6,4,'6/4'],[7,4,'7/4'],[8,4,'8/4'],
+  [9,4,'9/4'],[6,8,'6/8'],[9,8,'9/8'],[12,8,'12/8']
+];
 let actx=null,masterGain=null,noiseBuffer=null;
 let schedulerTimer=null,visualTimer=null,activeTransport=null,noteQueue=[];
 let wakeLockSentinel=null;
@@ -331,10 +339,10 @@ function playClick(type,time,opts={}){
   const c=ea();
   const when=Math.max(time,c.currentTime);
   const defaults={
-    accent:{freq:2200,q:12,noisePeak:.9,tonePeak:.25,decay:.05},
-    normal:{freq:1100,q:12,noisePeak:.6,tonePeak:.18,decay:.04},
-    ci:{freq:1500,q:14,noisePeak:.7,tonePeak:.22,decay:.045},
-    sub:{freq:800,q:10,noisePeak:.35,tonePeak:.08,decay:.025}
+    accent:{freq:2200,q:12,noisePeak:.9,tonePeak:.25,decay:.05,lowFreq:1100,lowGain:.18,lowDecay:.07,lowWave:'triangle'},
+    normal:{freq:1100,q:12,noisePeak:.6,tonePeak:.18,decay:.04,lowFreq:550,lowGain:.14,lowDecay:.06,lowWave:'triangle'},
+    ci:{freq:1500,q:14,noisePeak:.7,tonePeak:.22,decay:.045,lowFreq:750,lowGain:.15,lowDecay:.06,lowWave:'sine'},
+    sub:{freq:800,q:10,noisePeak:.35,tonePeak:.08,decay:.025,lowFreq:400,lowGain:.06,lowDecay:.04,lowWave:'sine'}
   };
   const d=defaults[type]||defaults.normal;
   const freq=opts.frequency??d.freq;
@@ -342,6 +350,10 @@ function playClick(type,time,opts={}){
   const noisePeak=opts.noiseGain??d.noisePeak;
   const tonePeak=opts.toneGain??d.tonePeak;
   const decay=opts.toneDecay??d.decay;
+  const lowFreq=opts.lowFreq??d.lowFreq;
+  const lowGain=opts.lowGain??d.lowGain;
+  const lowDecay=opts.lowDecay??d.lowDecay;
+  const lowWave=opts.lowWaveform??d.lowWave;
   const noise=c.createBufferSource(),bpf=c.createBiquadFilter(),noiseGain=c.createGain();
   noise.buffer=getNoiseBuffer(c);
   bpf.type='bandpass';
@@ -360,6 +372,16 @@ function playClick(type,time,opts={}){
   toneGain.gain.exponentialRampToValueAtTime(.0001,when+decay*.7);
   tone.connect(toneGain);toneGain.connect(masterGain);
   tone.start(when);tone.stop(when+decay+.02);
+  if(lowGain>0){
+    const low=c.createOscillator(),lowG=c.createGain();
+    low.type=lowWave;
+    low.frequency.value=lowFreq;
+    lowG.gain.setValueAtTime(.0001,when);
+    lowG.gain.exponentialRampToValueAtTime(lowGain,when+.002);
+    lowG.gain.exponentialRampToValueAtTime(.0001,when+lowDecay);
+    low.connect(lowG);lowG.connect(masterGain);
+    low.start(when);low.stop(when+lowDecay+.02);
+  }
 }
 function queueVisual(evt){
   noteQueue.push(evt);
@@ -492,13 +514,22 @@ function assignLabels(){
 }
 function tN(b){if(b<40)return'Grave';if(b<55)return'Largo';if(b<66)return'Larghetto';if(b<76)return'Adagio';if(b<92)return'Andante';if(b<108)return'Moderato';if(b<120)return'Allegretto';if(b<156)return'Allegro';if(b<176)return'Vivace';if(b<200)return'Presto';return'Prestissimo'}
 function clampTempo(v){return Math.max(20,Math.min(400,v||120))}
-function clampBeats(v){return Math.max(1,Math.min(8,v||4))}
+function clampBeats(v){return Math.max(1,Math.min(12,v||4))}
+function clampBeatUnit(v){return v===8?8:4}
 function clampCurve(v){return Math.max(-1,Math.min(1,Number.isFinite(v)?v:0))}
+function tsLabel(ts,bu){return ts===1&&bu===4?'1':`${clampBeats(ts)}/${clampBeatUnit(bu)}`}
+function parseTsValue(s){
+  if(s==='1')return[1,4];
+  const [a,b]=String(s).split('/').map(n=>parseInt(n,10));
+  return[clampBeats(a),clampBeatUnit(b)];
+}
 function normalizeSection(s){
-  const n={type:s.type||s.tp||'main',label:s.label||'',name:s.name||s.n||'',startMeasure:s.startMeasure??s.sm??1,measures:s.measures??s.m??0,tempo:clampTempo(s.tempo??s.t??120),timeSig:clampBeats(s.timeSig??s.ts??4)};
+  const n={type:s.type||s.tp||'main',label:s.label||'',name:s.name||s.n||'',startMeasure:s.startMeasure??s.sm??1,measures:s.measures??s.m??0,tempo:clampTempo(s.tempo??s.t??120),timeSig:clampBeats(s.timeSig??s.ts??4),beatUnit:clampBeatUnit(s.beatUnit??s.tu??4)};
   if(n.type==='main'){
     n.tempoEnd=clampTempo(s.tempoEnd??s.te??n.tempo);
     n.tempoCurve=clampCurve(parseFloat(s.tempoCurve??s.tc??0));
+    const sd=s.subdivision??s.sd;
+    n.subdivision=SUBDIVISION_STATES.some(x=>x.key===sd)?sd:'none';
   }else{
     n.measures=1;
   }
@@ -518,10 +549,6 @@ function tempoAt(sec,t){
   return start+(end-start)*tt;
 }
 function getSubdivisionState(key){return SUBDIVISION_STATES.find(s=>s.key===key)||SUBDIVISION_STATES[0]}
-function cycleSubdivision(key){
-  const idx=SUBDIVISION_STATES.findIndex(s=>s.key===key);
-  return SUBDIVISION_STATES[(idx+1)%SUBDIVISION_STATES.length];
-}
 function renderDots(id,beats,subdivisionKey){
   const el=$(id),sub=getSubdivisionState(subdivisionKey);
   el.innerHTML='';
@@ -550,11 +577,14 @@ function scheduleSubdivision(beatTime,beatDuration,key,panel,beatIndex){
   }
 }
 
-let mBpm=120,mBeats=4,mPlaying=false,mSubdivision='none';
-function mUpd(){$('mBv').textContent=mBpm;$('mTn').textContent=tN(mBpm);$('mSl').value=mBpm;$('mTs').textContent=mBeats===1?'1':mBeats+'/4';$('mTsSl').value=mBeats}
+let mBpm=120,mBeats=4,mBeatUnit=4,mPlaying=false,mSubdivision='none';
+function mUpd(){$('mBv').textContent=mBpm;$('mTn').textContent=tN(mBpm);$('mSl').value=mBpm;$('mTs').textContent=tsLabel(mBeats,mBeatUnit);$('mTsSel').value=tsLabel(mBeats,mBeatUnit)}
 function mSetBpm(v){mBpm=clampTempo(v);mUpd()}
 function mDots(){renderDots('mDt',mBeats,mSubdivision)}
-function mUpdSubdivision(){$('mSubBtn').textContent=getSubdivisionState(mSubdivision).label;mDots()}
+function mUpdSubdivision(){
+  $('mSubGrp').querySelectorAll('.subbtn').forEach(b=>b.classList.toggle('active',b.dataset.v===mSubdivision));
+  mDots();
+}
 function createMetroTransport(){
   const c=ea();
   return{
@@ -595,8 +625,8 @@ function mStop(){
 $('mPb').addEventListener('click',()=>{mPlaying?mStop():mStart()});
 $('mSl').addEventListener('input',e=>mSetBpm(parseInt(e.target.value,10)));
 document.querySelectorAll('#tab-metro .fb').forEach(b=>{b.addEventListener('click',()=>mSetBpm(mBpm+parseInt(b.dataset.d,10)))});
-$('mTsSl').addEventListener('input',e=>{mBeats=clampBeats(parseInt(e.target.value,10));mUpd();mDots()});
-$('mSubBtn').addEventListener('click',()=>{mSubdivision=cycleSubdivision(mSubdivision).key;mUpdSubdivision()});
+$('mTsSel').addEventListener('change',e=>{const [a,b]=parseTsValue(e.target.value);mBeats=a;mBeatUnit=b;mUpd();mDots()});
+$('mSubGrp').querySelectorAll('.subbtn').forEach(b=>b.addEventListener('click',()=>{mSubdivision=b.dataset.v;mUpdSubdivision()}));
 let tapT=[];
 $('tapB').addEventListener('click',()=>{
   const n=performance.now();
@@ -612,7 +642,7 @@ $('tapB').addEventListener('click',()=>{
   if(iv.length>0)mSetBpm(Math.round(60000/(iv.reduce((a,b)=>a+b,0)/iv.length)));
 });
 
-let pBpm=120,pBeats=4,pPlaying=false,pSubdivision='none';
+let pBpm=120,pBeats=4,pPlaying=false,pSubdivision='off';
 let ciOn=false,ciBts=4,isCi=false,ciBt=0;
 let ecOn=false,ecBts=4,ecBef=true,isEc=false,ecBt=0;
 let sTitle='',secs=[],curS=-1,curM=0;
@@ -652,11 +682,19 @@ function resetTempoOffset(){
   updateOffsetUI();
   if(!pPlaying)pUpd();
 }
-function pDots(n,subdivisionKey=pSubdivision){renderDots('pDt',n,subdivisionKey)}
-function pUpdSubdivision(){$('pSubBtn').textContent=getSubdivisionState(pSubdivision).label;if(!isCi&&!isEc)pDots(pBeats,pSubdivision)}
+function currentPerfSubdivision(){
+  if(pSubdivision!=='on')return'none';
+  const sec=secs[curS>=0?curS:rF];
+  return sec&&sec.type==='main'?(sec.subdivision||'none'):'none';
+}
+function pDots(n,subdivisionKey=currentPerfSubdivision()){renderDots('pDt',n,subdivisionKey)}
+function pUpdSubdivision(){
+  $('pSubGrp').querySelectorAll('.subbtn').forEach(b=>b.classList.toggle('active',b.dataset.v===pSubdivision));
+  if(!isCi&&!isEc)pDots(pBeats,currentPerfSubdivision());
+}
 function pSetPlay(){$('pPb').classList.add('on');$('pPi').innerHTML='<rect class="bar" x="6" y="5" width="4" height="14" rx="1"/><rect class="bar" x="14" y="5" width="4" height="14" rx="1"/>'}
 function pSetStop(){$('pPb').classList.remove('on');$('pPi').innerHTML='<polygon class="tri" points="8,5 20,12 8,19"/>'}
-function upSTB(){$('pST').innerHTML=sTitle?`<span>${sTitle}</span>`:''}
+function upSTB(){$('pST').innerHTML=sTitle?`<span>${escapeHtml(sTitle)}</span>`:''}
 function upSB(){
   const sb=$('pSB');
   if(isCi){sb.innerHTML=`<span class="tg tg-ci">Count-in ${ciBt}/${ciBts}</span>`;return}
@@ -665,8 +703,8 @@ function upSB(){
   if(curS>=0&&curS<secs.length){
     const s=secs[curS];
     if(s.type==='end'){sb.innerHTML=`<span class="tg tg-end">End</span>`;return}
-    const nm=s.name?` — ${s.name}`:'';
-    sb.innerHTML=`<span class="tg tg-n">${s.label}${nm}</span><div class="mc">小節 ${curM+1}${s.measures>0?' / '+s.measures:' (手動)'}</div>`;
+    const nm=s.name?` — ${escapeHtml(s.name)}`:'';
+    sb.innerHTML=`<span class="tg tg-n">${s.label}${nm}</span><div class="mc">小節 ${curM+1}${s.measures>0?' / '+s.measures:' (手動)'} ・ ${tsLabel(s.timeSig,s.beatUnit)}</div>`;
     return;
   }
   sb.innerHTML=`<span class="tg tg-off">${secs[rF]?.label||''} → ${secs[rT]?.label||''}</span>`;
@@ -699,7 +737,7 @@ function setPerformanceMainState(sectionIndex,measureIndex){
   ciBt=0;
   ecBt=0;
   pUpd();
-  pDots(pBeats,pSubdivision);
+  pDots(pBeats,currentPerfSubdivision());
   upSB();
   renderSL();
 }
@@ -800,7 +838,8 @@ function createPerformanceTransport(){
       const accent=(this.currentBeats===1)||this.beatIndex===0;
       const beatDuration=60/this.currentTempo;
       playClick(accent?'accent':'normal',time);
-      scheduleSubdivision(time,beatDuration,pSubdivision,'perf',this.beatIndex);
+      const subKey=pSubdivision==='on'?(sec.subdivision||'none'):'none';
+      scheduleSubdivision(time,beatDuration,subKey,'perf',this.beatIndex);
       queueVisual({panel:'perf',time,kind:'tempo',bpm:Math.round(this.currentTempo)});
       queueVisual({panel:'perf',time,beatIndex:this.beatIndex,dotClass:'on',flashClass:'f1'});
     },
@@ -903,7 +942,7 @@ $('ecT').addEventListener('click',()=>{ecOn=!ecOn;const e=$('ecT');e.classList.r
 $('ciS').querySelectorAll('.so').forEach(b=>{b.addEventListener('click',()=>{$('ciS').querySelectorAll('.so').forEach(x=>x.classList.remove('ap'));b.classList.add('ap');ciBts=parseInt(b.dataset.v,10)})});
 $('ecBS').querySelectorAll('.so').forEach(b=>{b.addEventListener('click',()=>{$('ecBS').querySelectorAll('.so').forEach(x=>x.classList.remove('ag'));b.classList.add('ag');ecBts=parseInt(b.dataset.v,10)})});
 $('ecTS').querySelectorAll('.so').forEach(b=>{b.addEventListener('click',()=>{$('ecTS').querySelectorAll('.so').forEach(x=>x.classList.remove('ag'));b.classList.add('ag');ecBef=b.dataset.v==='before'})});
-$('pSubBtn').addEventListener('click',()=>{pSubdivision=cycleSubdivision(pSubdivision).key;pUpdSubdivision()});
+$('pSubGrp').querySelectorAll('.subbtn').forEach(b=>b.addEventListener('click',()=>{pSubdivision=b.dataset.v;pUpdSubdivision()}));
 $('rF').addEventListener('change',e=>{rF=parseInt(e.target.value,10);if(rT<rF){rT=rF;$('rT').value=rT}upSB()});
 $('rT').addEventListener('change',e=>{rT=parseInt(e.target.value,10);if(rF>rT){rF=rT;$('rF').value=rF}upSB()});
 
@@ -916,14 +955,16 @@ function renderSL(){
     if(s.type==='end')cls+=' is-end';
     c.className=cls;
     if(s.type==='end'){
-      c.innerHTML=`<div class="sch"><span class="slet el">End</span><input class="sni" type="text" value="${s.name}" placeholder="Ending" data-i="${i}" data-f="name"><button class="sdel" data-i="${i}">×</button></div>
+      c.innerHTML=`<div class="sch"><span class="slet el">End</span><input class="sni" type="text" value="${escapeHtml(s.name)}" placeholder="Ending" data-i="${i}" data-f="name"><button class="sdel" data-i="${i}">×</button></div>
         <div class="sfs f2"><div class="fg"><label>開始小節</label><input type="number" min="1" max="999" value="${s.startMeasure}" data-i="${i}" data-f="startMeasure"></div><div class="fg"><label>テンポ</label><input type="number" min="20" max="400" value="${s.tempo}" data-i="${i}" data-f="tempo"></div></div>`;
     }else{
       const mv=`<div class="smv"><button class="mvb" data-d="up" data-i="${i}">▲</button><button class="mvb" data-d="dn" data-i="${i}">▼</button></div>`;
-      const te=s.tempoEnd??s.tempo,tc=s.tempoCurve??0,open=te!==s.tempo||tc!==0?' open':'';
-      c.innerHTML=`<div class="sch">${mv}<span class="slet">${s.label}</span><input class="sni" type="text" value="${s.name}" placeholder="セクション名" data-i="${i}" data-f="name"><button class="sdel" data-i="${i}">×</button></div>
-        <div class="sfs f4"><div class="fg"><label>開始小節</label><input type="number" min="1" max="999" value="${s.startMeasure}" data-i="${i}" data-f="startMeasure"></div><div class="fg"><label>小節数</label><input type="number" min="0" max="999" value="${s.measures}" data-i="${i}" data-f="measures"></div><div class="fg"><label>テンポ</label><input type="number" min="20" max="400" value="${s.tempo}" data-i="${i}" data-f="tempo"></div><div class="fg"><label>拍子</label><select data-i="${i}" data-f="timeSig">${[1,2,3,4,5,6,7,8].map(t=>`<option value="${t}"${t===s.timeSig?' selected':''}>${t===1?'1':t+'/4'}</option>`).join('')}</select></div></div>
-        <details class="sdet"${open}><summary>詳細</summary><div class="sfs f2"><div class="fg"><label>終了テンポ</label><input type="number" min="20" max="400" value="${te}" data-i="${i}" data-f="tempoEnd"></div><div class="fg"><label>カーブ</label><input type="range" min="-1" max="1" step="0.1" value="${tc}" data-i="${i}" data-f="tempoCurve"><div class="curvev" data-cv="${i}">${Number(tc).toFixed(1)}</div></div></div></details>`;
+      const te=s.tempoEnd??s.tempo,tc=s.tempoCurve??0,open=te!==s.tempo||tc!==0||s.subdivision!=='none'?' open':'';
+      const tsOptions=TIME_SIG_OPTIONS.map(([a,b,lbl])=>`<option value="${a}/${b}"${a===s.timeSig&&b===(s.beatUnit||4)?' selected':''}>${lbl}</option>`).join('');
+      const subOptions=SUBDIVISION_STATES.map(x=>`<option value="${x.key}"${x.key===(s.subdivision||'none')?' selected':''}>${x.key==='none'?'OFF':x.label}</option>`).join('');
+      c.innerHTML=`<div class="sch">${mv}<span class="slet">${s.label}</span><input class="sni" type="text" value="${escapeHtml(s.name)}" placeholder="セクション名" data-i="${i}" data-f="name"><button class="sdel" data-i="${i}">×</button></div>
+        <div class="sfs f4"><div class="fg"><label>開始小節</label><input type="number" min="1" max="999" value="${s.startMeasure}" data-i="${i}" data-f="startMeasure"></div><div class="fg"><label>小節数</label><input type="number" min="0" max="999" value="${s.measures}" data-i="${i}" data-f="measures"></div><div class="fg"><label>テンポ</label><input type="number" min="20" max="400" value="${s.tempo}" data-i="${i}" data-f="tempo"></div><div class="fg"><label>拍子</label><select data-i="${i}" data-f="tsCombo">${tsOptions}</select></div></div>
+        <details class="sdet"${open}><summary>詳細</summary><div class="sfs f2"><div class="fg"><label>終了テンポ</label><input type="number" min="20" max="400" value="${te}" data-i="${i}" data-f="tempoEnd"></div><div class="fg"><label>カーブ</label><input type="range" min="-1" max="1" step="0.1" value="${tc}" data-i="${i}" data-f="tempoCurve"><div class="curvev" data-cv="${i}">${Number(tc).toFixed(1)}</div></div></div><div class="sfs" style="margin-top:6px"><div class="fg"><label>Subdivision</label><select data-i="${i}" data-f="subdivision">${subOptions}</select></div></div></details>`;
     }
     $('sList').appendChild(c);
   });
@@ -936,7 +977,8 @@ function renderSL(){
       else if(f==='tempo'){const old=secs[i].tempo;secs[i].tempo=clampTempo(parseInt(e.target.value,10)||120);if(secs[i].tempoEnd==null||secs[i].tempoEnd===old)secs[i].tempoEnd=secs[i].tempo;e.target.value=secs[i].tempo}
       else if(f==='tempoEnd'){secs[i].tempoEnd=e.target.value===''?secs[i].tempo:clampTempo(parseInt(e.target.value,10)||secs[i].tempo);e.target.value=secs[i].tempoEnd}
       else if(f==='tempoCurve'){secs[i].tempoCurve=clampCurve(parseFloat(e.target.value));e.target.value=secs[i].tempoCurve;const cv=document.querySelector(`[data-cv="${i}"]`);if(cv)cv.textContent=secs[i].tempoCurve.toFixed(1)}
-      else if(f==='timeSig')secs[i].timeSig=clampBeats(parseInt(e.target.value,10));
+      else if(f==='tsCombo'){const [a,b]=parseTsValue(e.target.value);secs[i].timeSig=a;secs[i].beatUnit=b}
+      else if(f==='subdivision')secs[i].subdivision=e.target.value;
       else if(f==='measures'){secs[i].measures=Math.max(0,parseInt(e.target.value,10)||0);e.target.value=secs[i].measures}
       assignLabels();
       saveCur();
@@ -975,7 +1017,7 @@ $('addS').addEventListener('click',()=>{
   const ins=endIdx>=0?endIdx:secs.length;
   const prev=ins>0?secs[ins-1]:null;
   const sm=prev?(prev.startMeasure+(prev.measures||4)):1;
-  secs.splice(ins,0,{type:'main',label:'',name:'',startMeasure:sm,measures:4,tempo:mBpm,tempoEnd:mBpm,tempoCurve:0,timeSig:mBeats});
+  secs.splice(ins,0,{type:'main',label:'',name:'',startMeasure:sm,measures:4,tempo:mBpm,tempoEnd:mBpm,tempoCurve:0,timeSig:mBeats,beatUnit:mBeatUnit,subdivision:'none'});
   assignLabels();
   renderSL();
   saveCur();
@@ -987,7 +1029,7 @@ $('addE').addEventListener('click',()=>{
   if(secs.some(s=>s.type==='end')){toast('エンドは1つのみ');return}
   const prev=secs.length>0?secs[secs.length-1]:null;
   const sm=prev?(prev.startMeasure+(prev.measures||4)):1;
-  secs.push({type:'end',label:'End',name:'',startMeasure:sm,measures:1,tempo:mBpm,timeSig:mBeats});
+  secs.push({type:'end',label:'End',name:'',startMeasure:sm,measures:1,tempo:mBpm,timeSig:mBeats,beatUnit:mBeatUnit});
   assignLabels();
   renderSL();
   saveCur();
@@ -997,7 +1039,7 @@ $('addE').addEventListener('click',()=>{
 });
 
 function saveLib(){try{localStorage.setItem('metronome-lib',JSON.stringify(lib))}catch(e){}}
-function loadLib(){try{const r=localStorage.getItem('metronome-lib');if(r)lib=JSON.parse(r);lib=lib.map(s=>({...s,sections:normalizeSections(s.sections)}))}catch(e){lib=[]}}
+function loadLib(){try{const r=localStorage.getItem('metronome-lib');if(r)lib=JSON.parse(r);lib=lib.map(s=>({...s,sections:normalizeSections(s.sections)}));saveLib()}catch(e){lib=[]}}
 function saveCur(){if(!curSId)return;const i=lib.findIndex(s=>s.id===curSId);if(i>=0){lib[i].title=sTitle;lib[i].sections=JSON.parse(JSON.stringify(secs))}saveLib()}
 function loadSong(s){resetTempoOffset();curSId=s.id;sTitle=s.title;$('sT').value=sTitle;secs=normalizeSections(JSON.parse(JSON.stringify(s.sections||[])));assignLabels();curS=-1;curM=0;rF=0;rT=Math.max(0,secs.length-1);updateAll()}
 
@@ -1009,7 +1051,7 @@ function renderLL(){
     const c=document.createElement('div');
     c.className='lc'+(s.id===curSId?' cur':'');
     const mainCount=(s.sections||[]).filter(x=>x.type!=='end').length;
-    c.innerHTML=`<div class="lci"><div class="lct">${s.title||'無題'}</div><div class="lcm">${mainCount} セクション</div></div>
+    c.innerHTML=`<div class="lci"><div class="lct">${escapeHtml(s.title||'無題')}</div><div class="lcm">${mainCount} セクション</div></div>
       <div class="lca"><button class="lib" data-a="exp" data-id="${s.id}">↗</button><button class="lib dg" data-a="del" data-id="${s.id}">×</button></div>`;
     c.addEventListener('click',e=>{if(e.target.closest('.lib'))return;loadSong(s);switchTab('perf')});
     l.appendChild(c);
@@ -1053,7 +1095,7 @@ $('svL').addEventListener('click',()=>{
   renderLL();
 });
 
-function enc(s){return btoa(unescape(encodeURIComponent(JSON.stringify({v:4,title:s.title||'',sections:(s.sections||[]).map(x=>({tp:x.type,n:x.name,sm:x.startMeasure,m:x.measures,t:x.tempo,te:x.tempoEnd,tc:x.tempoCurve,ts:x.timeSig}))}))))}
+function enc(s){return btoa(unescape(encodeURIComponent(JSON.stringify({v:5,title:s.title||'',sections:(s.sections||[]).map(x=>({tp:x.type,n:x.name,sm:x.startMeasure,m:x.measures,t:x.tempo,te:x.tempoEnd,tc:x.tempoCurve,ts:x.timeSig,tu:x.beatUnit,...(x.type==='main'?{sd:x.subdivision||'none'}:{})}))}))))}
 function dec(c){try{const d=JSON.parse(decodeURIComponent(escape(atob(c.trim()))));if(!d.sections)return null;return{title:d.title||'',sections:normalizeSections(d.sections)}}catch(e){return null}}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500)}
 $('exB').addEventListener('click',()=>{sTitle=$('sT').value;saveCur();const s=curSId?lib.find(x=>x.id===curSId):null;$('exA').value=enc(s||{title:sTitle,sections:secs});$('exM').classList.add('show')});

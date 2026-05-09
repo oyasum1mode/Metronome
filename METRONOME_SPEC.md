@@ -38,9 +38,9 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
 ### 1. テンポ（独立メトロノーム）
 - 曲・セクションとは**完全に無関係**
 - BPM: 20〜400（スライダー + ±1/±5/±10ボタン）
-- 拍子: 1〜8（スライダー、デフォルト4/4）
+- 拍子: **12種から選択**（`1`, `2/4`, `3/4`, `4/4`, `5/4`, `6/4`, `7/4`, `8/4`, `9/4`, `6/8`, `9/8`, `12/8`）。ドロップダウン（`<select>`）で表現し、必要に応じて ±1/±5/±10 等のボタン群と横並びに配置してよい。デフォルト `4/4`
 - Tap Tempo対応
-- **Subdivision Click**: 後述の仕様に従いトグルボタンで切替可能
+- **Subdivision Click**: **OFF / 8th / Tri / 16th の4ボタン横並び**（ラジオ風選択）。再生中も即時切替可能
 - Tap Off / End Check / セクション機能なし
 - スペースキーで再生/停止
 
@@ -55,17 +55,19 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
   - ただし rF === rT の場合は、そのセクション自体をEC音で置き換え
 - **練習範囲**: 開始セクション → 終了セクション をドロップダウンで選択。表示は `name (label)` 形式（例: `Intro (A)`）。name が空のセクションは label のみ表示
 - **テンポオフセット**: BPM 表示の直下に `[ -10 ] [ In tempo ] [ +10 ]` ボタンで現曲全セクションのテンポを一括でずらせる（遅練習用）。詳細は「テンポオフセット」節
-- **Subdivision Click**: 後述の仕様に従いトグルボタンで切替可能
+- **Subdivision Click**: **ON/OFF の2ボタン**のみ。ON のときは曲編集で各セクションに設定された subdivision（`none`/`8th`/`triplet`/`16th`）に従って鳴らす。OFF のときは一切鳴らさない
 - スペースキーで再生/停止
 
 ### 3. 曲編集
 - 曲名入力
 - セクション追加（A〜Z, AA〜ZZ まで自動ラベル）
-  - 各セクション: 開始小節、小節数（0=手動）、テンポ、拍子
+  - 各セクション: 開始小節、小節数（0=手動）、テンポ、拍子（**12種から選択**、上記テンポタブと同じ選択肢）
+  - **詳細（折りたたみ）**: 終了テンポ、カーブ、**Subdivision**（`OFF`/`8th`/`Tri`/`16th`）
   - ▲▼ボタンで順序変更可能
 - エンドブロック追加（1曲に1つのみ、常に最後に配置）
   - 頭1拍のみ再生される特殊ブロック
   - ▲▼ボタンなし（位置固定）
+  - Subdivision は持たない（頭1拍のみのため）
 - 💾 ライブラリに保存ボタン
 - エクスポート（Base64コード）/ インポート
 - クリア
@@ -82,19 +84,41 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
 
 ## 追加機能: Subdivision Click
 
-メインビートに重ねてサブクリックを鳴らすオプション機能。テンポタブ・パフォーマンスタブ両方で利用可能。
+メインビートに重ねてサブクリックを鳴らすオプション機能。タブごとに UI と振る舞いが異なる。
 
-### UI
-- トグルボタン 1つ（循環式）
-- 状態遷移: **None → 8th → Triplet → 16th → None**
-- ボタン上に現在の状態を表示（例: `—` / `8th` / `Tri` / `16th`）
+### 状態の種類（共通）
+| キー | ラベル | 分割数 |
+|------|-------|--------|
+| `none` | OFF | 1（鳴らさない） |
+| `8th` | 8th | 2 |
+| `triplet` | Tri | 3 |
+| `16th` | 16th | 4 |
+
+### UI（タブ別）
+
+**テンポタブ**
+- 横並び **4ボタン**（OFF / 8th / Tri / 16th）。ラジオ風で常に1つだけ選択中
+- 現在の選択は `.active` クラスで視覚的にハイライト
+- 再生中もボタン押下で即時切替可能（次のスケジューリングサイクルから反映）
+- グローバル変数: `mSubdivision`（値: `'none'`/`'8th'`/`'triplet'`/`'16th'`）
+
+**パフォーマンスタブ**
+- 横並び **2ボタン**（OFF / ON）
+- グローバル変数: `pSubdivision`（値: `'on'`/`'off'`）
+- ON のとき: 各セクションに保存された `subdivision` フィールドに従って鳴らす（`none` のセクションは鳴らない）
+- OFF のとき: subdivision を一切鳴らさない（セクション側の設定は無視）
+
+**曲編集タブ**
+- セクションの「⋯ 詳細」折りたたみ内にセレクトボックス（OFF / 8th / Tri / 16th）
+- セクションデータの `subdivision` フィールドに保存
+- エンドブロック（`type='end'`）には表示しない
 
 ### 音声仕様
 | 状態 | 分割数 | インターバル@120BPM | 音量 | 音色 |
 |------|--------|---------------------|------|------|
-| None | — | — | — | — |
+| none | — | — | — | — |
 | 8th | 2分割 | 250ms | メインの 40〜50% | メインと異なる音色（三角波 or 低周波サイン波） |
-| Triplet | 3分割 | 166.7ms | メインの 40〜50% | 同上 |
+| triplet | 3分割 | 166.7ms | メインの 40〜50% | 同上 |
 | 16th | 4分割 | 125ms | メインの 40〜50% | 同上 |
 
 メインビート自体は Subdivision の有無にかかわらず通常通り鳴らす。サブクリックはその間隔で追加される。
@@ -105,10 +129,12 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
 - **メインとサブの位相ズレが発生しないこと**  
   → lookahead スケジューラ内で同一 `beatTime` を基準に `beatTime + subOffset * n` で算出・予約すること
 - Count-in（Tap Off）中および End Check 中はサブクリックを鳴らさない
+- パフォーマンスタブではセクション境界跨ぎで subdivision の数が動的に変わる（dot 再描画）
 
 ### 実装要件
 - `AudioContext.currentTime` ベースの lookahead scheduling で実装すること（後述）
 - サブビートは、メインビートと同じスケジューラ内で一括予約する
+- パフォーマンスタブの `scheduleNext` 内で、`pSubdivision==='on'` ならセクションの `subdivision` を、OFF なら `'none'` を `scheduleSubdivision()` に渡す
 
 ---
 
@@ -161,29 +187,36 @@ BOSS DB-30 系の Click 音（木魚っぽい「コッカッ」）を Web Audio 
 
 > Pa/Ta フォルマント版（DB-90 Voice 風の試作）は DB-90 実機との差が大きかったため、サンプル音源導入までは DB-30 Click 版に戻して運用する。
 
-### ノード構成
+### ノード構成（3パス並列）
 
 ```
 NoiseBuffer(50ms) → BiquadFilter(BPF) → Gain(env) ─┐
-                                                    ├→ masterGain → destination
-Oscillator(sine)                      → Gain(env) ─┘
+                                                    │
+Oscillator(sine, freq=BPF中心)        → Gain(env) ─┼→ masterGain → destination
+                                                    │
+Oscillator(low, ≒freq/2, triangle/sine) → Gain(env) ┘
 ```
 
 - **ノイズ + バンドパスフィルター**でピッチを作るパーカッシブ成分（Click の主成分）
 - **サイン波（少量）**で芯を加える
-- 各 Gain は超高速アタック（≦1ms）→ exp 減衰でクリック感を出す
+- **低音 Oscillator（追加分）** で中低域の太さを加える。既存サイン波の概ね 1 オクターブ下、三角波またはサイン波
+- 各 Gain は超高速アタック（≦2ms）→ exp 減衰でクリック感を出す
 - ノイズバッファは 50ms、`getNoiseBuffer` でキャッシュ再利用
 
 ### 音色パラメータ（実装目安）
 
-| 種類 | BPF中心周波数 | Q | ノイズピーク | サインピーク | 減衰 | 用途 |
-|------|------------|---|------------|------------|------|------|
-| accent | 2200 Hz | 12 | 0.9 | 0.25 | 50 ms | 小節頭（1拍子の場合は全拍） |
-| normal | 1100 Hz | 12 | 0.6 | 0.18 | 40 ms | 通常拍 |
-| ci | 1500 Hz | 14 | 0.7 | 0.22 | 45 ms | Tap Off / End Check |
-| sub | 800 Hz | 10 | 0.35 | 0.08 | 25 ms | Subdivision サブビート |
+| 種類 | BPF中心 | Q | ノイズPeak | サインPeak | 減衰 | 低音Freq | 低音Peak | 低音減衰 | 低音波形 | 用途 |
+|------|--------:|--:|----------:|----------:|----:|--------:|--------:|--------:|---------|------|
+| accent | 2200 Hz | 12 | 0.9 | 0.25 | 50 ms | 1100 Hz | 0.18 | 70 ms | triangle | 小節頭（1拍子の場合は全拍） |
+| normal | 1100 Hz | 12 | 0.6 | 0.18 | 40 ms | 550 Hz | 0.14 | 60 ms | triangle | 通常拍 |
+| ci | 1500 Hz | 14 | 0.7 | 0.22 | 45 ms | 750 Hz | 0.15 | 60 ms | sine | Tap Off / End Check |
+| sub | 800 Hz | 10 | 0.35 | 0.08 | 25 ms | 400 Hz | 0.06 | 40 ms | sine | Subdivision サブビート |
 
-数値は試聴で調整可。`playClick(type, time, opts)` の `opts` キーは旧形式（`frequency` / `Q` / `noiseGain` / `toneGain` / `toneDecay` / `waveform`）でオーバーライド可能。
+数値は試聴で調整可。`playClick(type, time, opts)` の `opts` キーで以下をオーバーライド可能:
+- 既存: `frequency` / `Q` / `noiseGain` / `toneGain` / `toneDecay` / `waveform`
+- 追加: `lowFreq` / `lowGain` / `lowDecay` / `lowWaveform`
+
+`lowGain: 0` を指定すれば低音パスを無効化でき、従来音に戻せる（互換性確保のための安全弁）。
 
 ---
 
@@ -228,21 +261,98 @@ Oscillator(sine)                      → Gain(env) ─┘
   tempo: 120,               // セクション開始時の BPM
   tempoEnd: 100,             // セクション終了時の BPM（省略時 = tempo、定速）
   tempoCurve: 0,             // -1.0〜+1.0、変化カーブ（既定 0=線形）。type='end' では未使用
-  timeSig: 4                // 拍子（1〜8）
+  timeSig: 4,               // 拍子の分子（1〜12）
+  beatUnit: 4,              // ★拍子の分母（4 または 8、既定 4）。BPM はこの音符の毎分数を意味する
+  subdivision: 'none'        // ★main のみ: 'none' | '8th' | 'triplet' | '16th'（既定 'none'）。end には付与しない
 }
 ```
+
+**BPM の意味**: BPM は `beatUnit` の音符の毎分数。例えば `beatUnit: 8`（6/8 や 9/8 等）の場合、BPM=120 は「8分音符が1分間に120回」=「8分音符1個 0.5秒」を意味する。`beatDuration = 60 / BPM` の式は不変。
+
+**1小節の長さ**: `measures × timeSig × (60 / BPM)` 秒。例: BPM=120, 6/8 → 1小節 = 1 × 6 × 0.5 = 3 秒。
 
 ### ライブラリ（lib配列）
 ```javascript
 {
   id: 's1234567890',        // ユニークID
-  title: 'Doddy',           // 曲名
+  title: 'My Song',         // 曲名
   sections: [...]            // セクション配列のコピー
 }
 ```
 
 ### エクスポート形式
-JSON → Base64エンコード。バージョン: `v:4`（`tempoEnd` / `tempoCurve` を含む。読込側で未定義なら定速扱いとしてデフォルト補完）。
+JSON → Base64エンコード。バージョン: **`v:5`**（`beatUnit` と `subdivision` を追加）。
+
+**v:5 のフィールド対応**:
+- `tp`=type, `n`=name, `sm`=startMeasure, `m`=measures
+- `t`=tempo, `te`=tempoEnd, `tc`=tempoCurve
+- `ts`=timeSig, **`tu`=beatUnit**, **`sd`=subdivision**（`tu`/`sd` が新規追加）
+
+**後方互換性**: 読込側 `dec()` はバージョンを見ず、`normalizeSection()` がデフォルト補完する。
+- v:4 以下のデータ（`tu`/`sd` なし）→ `beatUnit: 4`、`subdivision: 'none'` で補完
+- localStorage に保存済みの v:4 ライブラリは初回起動時に自動マイグレートされ、編集・保存時に v:5 形式で書き戻される
+
+---
+
+## 拍子（Time Signature）
+
+複合拍子・特殊拍子に対応するため、拍子は **分子（`timeSig`）+ 分母（`beatUnit`）** の組で表現する。
+
+### 選択可能な拍子（12種）
+
+UI から選べる拍子は以下に限定する。テンポタブ・曲編集タブの両方で同じ選択肢を使う。
+
+| 表示 | timeSig | beatUnit |
+|------|--------:|---------:|
+| `1` | 1 | 4 |
+| `2/4` | 2 | 4 |
+| `3/4` | 3 | 4 |
+| `4/4` | 4 | 4 |
+| `5/4` | 5 | 4 |
+| `6/4` | 6 | 4 |
+| `7/4` | 7 | 4 |
+| `8/4` | 8 | 4 |
+| `9/4` | 9 | 4 |
+| `6/8` | 6 | 8 |
+| `9/8` | 9 | 8 |
+| `12/8` | 12 | 8 |
+
+`1` は「1拍/小節」の特殊表示で、内部的には `timeSig:1, beatUnit:4`。1拍子のときは全拍がアクセント音（既存仕様維持）。
+
+### ヘルパ関数（実装目安）
+
+```javascript
+const TIME_SIG_OPTIONS = [
+  [1,4,'1'], [2,4,'2/4'], [3,4,'3/4'], [4,4,'4/4'],
+  [5,4,'5/4'], [6,4,'6/4'], [7,4,'7/4'], [8,4,'8/4'],
+  [9,4,'9/4'], [6,8,'6/8'], [9,8,'9/8'], [12,8,'12/8']
+];
+function clampBeats(v)    { return Math.max(1, Math.min(12, v||4)) }   // 上限を 12 に拡大
+function clampBeatUnit(v) { return v===8 ? 8 : 4 }                     // 4 か 8 のみ
+function tsLabel(ts, bu)  { return (ts===1 && bu===4) ? '1' : `${ts}/${bu}` }
+function parseTsValue(s) {
+  if (s === '1') return [1, 4];
+  const [a, b] = s.split('/').map(n => parseInt(n, 10));
+  return [clampBeats(a), clampBeatUnit(b)];
+}
+```
+
+### ロジック上の取り扱い
+
+- BPM の意味は `beatUnit` の音符の毎分数。`beatDuration = 60 / BPM` の式は **変更不要**
+- ドット数は `timeSig` 個（メインドット）。subdivision に応じて補助ドットが間に追加される
+- アクセントは小節の頭（`beatIndex===0`）のみ。`timeSig===1` の場合のみ全拍アクセント（既存仕様維持）
+- 進捗計算 `progress(sec, beatIndex, measureIndex)` の `totalBeats = measures × timeSig` も **変更不要**
+
+### UI 配置
+
+- **テンポタブ**: ドロップダウン（`<select>`）。±1/±5/±10 ボタン群と横並びにレイアウトしてもよい
+- **曲編集タブ**: 各セクションの拍子フィールドをドロップダウンに置き換え
+- **パフォーマンスタブ**: 表示のみ。`tsLabel(timeSig, beatUnit)` 形式で現在のセクションの拍子を表示
+
+### モバイル制約
+
+- 12/8 + 16th subdivision の組み合わせはメイン12 + サブ36 = 48 ドットになり、iPhone SE では2〜3段に折り返す。`flex-wrap:wrap` で破綻はしないが視認性は許容範囲（リリース後の改善候補）
 
 ---
 
@@ -472,6 +582,18 @@ accel/rit「⋯ 詳細」トグル追加でセクションカードが縦に伸�
 | **Phase 2** | Subdivision Click 機能の追加 | **Phase 1 完了後** |
 | **Phase 3** | モバイルUI最適化（1画面レイアウト、svh、safe-area-inset、タップターゲット） | Phase 1・2 と独立 |
 | **Phase 4** | PWA 化（manifest.json、sw.js、Wake Lock、アイコン） | Phase 3 完了後が望ましい |
+| **Phase 5** | 配布フィードバック反映（音色強化・Subdivision UI 再編・拍子拡張・セクション別 subdivision・v:5マイグレーション） | Phase 1〜4 完了後 |
+
+### Phase 5 の内訳（本仕様書改訂で取り込み済み）
+
+| 項目 | 概要 |
+|------|------|
+| 音色強化 | `playClick()` に低音 Oscillator を1本追加して中低域を厚くする |
+| テンポタブ Subdivision | 循環式トグル → OFF/8th/Tri/16th の4ボタン横並び |
+| パフォーマンスタブ Subdivision | ON/OFF の2ボタン。各セクションの subdivision に従って鳴らす |
+| 曲編集 Subdivision | セクションの「⋯ 詳細」内に subdivision セレクトを追加 |
+| 拍子拡張 | 6/8, 9/8, 12/8, 9/4 を追加。`beatUnit` フィールド新設、UI を select 化 |
+| エクスポート | `v:4 → v:5` に進める。新フィールド `tu`/`sd`、`normalizeSection` で互換補完 |
 
 ---
 
