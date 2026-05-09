@@ -4,7 +4,7 @@
     {
       "name": "Metronome Dev Server",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-I", "-c", "import http.server,os; os.chdir('/Users/doddy/Library/Mobile Documents/com~apple~CloudDocs/Documents/ClaudeWorkspace/projects/Metronome/20260330'); http.server.test(http.server.SimpleHTTPRequestHandler,port=int(os.environ.get('PORT',8080)),bind='')"],
+      "runtimeArgs": ["-I", ".claude/dev-server.py"],
       "autoPort": true
     }
   ]
