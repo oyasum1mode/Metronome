@@ -54,8 +54,8 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
   - rangeToの1拍目からEnd Check音に切り替わる（rangeToのセクション自体は通常再生しない）
   - ただし rF === rT の場合は、そのセクション自体をEC音で置き換え
 - **練習範囲**: 開始セクション → 終了セクション をドロップダウンで選択。表示は `name (label)` 形式（例: `Intro (A)`）。name が空のセクションは label のみ表示
-- **テンポオフセット**: BPM 表示の直下に `[ -10 ] [ In tempo ] [ +10 ]` ボタンで現曲全セクションのテンポを一括でずらせる（遅練習用）。詳細は「テンポオフセット」節
-- **Subdivision Click**: **ON/OFF の2ボタン**のみ。ON のときは曲編集で各セクションに設定された subdivision（`none`/`8th`/`triplet`/`16th`）に従って鳴らす。OFF のときは一切鳴らさない
+- **テンポオフセット**: BPM 表示の直下に `[ -10 ][ -5 ][ -1 ][ +1 ][ +5 ][ +10 ]` と `[ In tempo ]`（横長・2段目）ボタンで現曲全セクションのテンポを一括でずらせる（遅練習用）。詳細は「テンポオフセット」節
+- **Subdivision Click**: **ON/OFF の2ボタン**のみ。ON のときは曲編集で各セクションに設定された subdivision（`none`/`8th`/`triplet`/`16th`）に従って鳴らす。OFF のときは一切鳴らさない（Phase 7.1: このON/OFFトグルは再生画面から設定シート `#pSet` へ移動。テンポタブの4ボタンSubdivisionは再生画面に残す）
 - スペースキーで再生/停止
 
 ### 3. 曲編集
@@ -64,17 +64,19 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
   - 各セクション: 開始小節、小節数（0=手動）、テンポ、拍子（**12種から選択**、上記テンポタブと同じ選択肢）
   - **詳細（折りたたみ）**: 終了テンポ、カーブ、**Subdivision**（`OFF`/`8th`/`Tri`/`16th`）
   - ▲▼ボタンで順序変更可能
+  - **新規追加時のテンポ・拍子引き継ぎ**: 直前セクション `prev` が存在する場合、`tempo`/`tempoEnd` は `prev.type==='main' ? (prev.tempoEnd ?? prev.tempo) : prev.tempo`（＝直前セクションの変化後テンポ）を引き継ぎ、`timeSig`/`beatUnit` も `prev` の値をそのまま引き継ぐ（新規セクションは定速スタートのため `tempoEnd=tempo`、`changeFrom=1`）。`prev` が存在しない（曲の先頭に追加する）場合のみ、従来通りテンポタブの現在値（`mBpm`/`mBeats`/`mBeatUnit`）を初期値にする
 - エンドブロック追加（1曲に1つのみ、常に最後に配置）
   - 頭1拍のみ再生される特殊ブロック
   - ▲▼ボタンなし（位置固定）
   - Subdivision は持たない（頭1拍のみのため）
-- 💾 ライブラリに保存ボタン
-- エクスポート（Base64コード）/ インポート
-- クリア
+  - テンポ・拍子引き継ぎのルールはセクション追加と同じ（直前セクションの変化後テンポ・拍子を引き継ぎ、曲が空の場合のみテンポタブの現在値）
+- 💾 ライブラリに保存ボタン / ↗ エクスポート（Base64コード）/ ↙ インポート / ✕ クリア
+  - 4つは `.sa{display:grid;grid-template-columns:1fr 1fr}` の **2×2 グリッド**配置（Phase 7）。各ボタン `.sab` は横幅 50%・**高さ 48px 以上**で押しやすくする
 
 ### 4. ライブラリ
 - 保存した曲一覧
 - クリックで曲を読み込み → パフォーマンスタブへ遷移
+- 各曲行に **↑↓ボタン**（Phase 7）を追加し、`lib` 配列内の並び順を入れ替えられる。セクション編集の ▲▼（`.mvb`）と同じ実装パターンで、先頭の↑・末尾の↓は `.disabled` クラスで無効表示にする。並べ替え後は既存の `saveLib()` で `metronome-lib` に保存するためリロード後も順序を保持する
 - 各曲からエクスポート / 削除
 - 「+ 新しい曲を作成」ボタン
 - データはブラウザの `localStorage` で永続化（キー: `metronome-lib`）
@@ -240,11 +242,28 @@ Oscillator(low, ≒freq/2, triangle/sine) → Gain(env) ┘
 
 ---
 
-## 外観 / テーマ
+## 外観 / テーマ（Phase 7 で復活）
 
-- ダークテーマ固定。ライトテーマは可読性が低いため廃止
-- テーマ切替ボタン（旧 `themeBtn`）も廃止し、CSS 変数は `:root` に集約
-- フッターのアフィリエイト/広告枠（旧 `.aff-footer`）は運用しないため削除
+- Phase 6 までは `themeBtn` を廃止しダークテーマ固定としていたが、Phase 7 で 80 年代機器風の 3 テーマへ切替可能にする方針に変更
+- `<html data-theme="rhythm|deck|calc">` でテーマを切替。ヘッダー左上の `#themeBtn`（テキスト表示）をタップすると rhythm→deck→calc→rhythm の順に循環する
+  - **rhythm**（A・リズムマシン風）: グレー筐体、赤 7 セグ LED、四角いキー、上部にオレンジのライン
+  - **deck**（B・コンポ/デッキ風）: シルバー筐体、蛍光表示管（緑）、細枠のメカボタン
+  - **calc**（C・電卓/デジタル時計風）: 黒筐体、反射液晶（緑がかったグレー地に濃色文字）、角丸ゴムボタン、START ボタンのみ常時オレンジ
+- 選択は `localStorage`キー `metronome-theme` に保存（既定 `rhythm`）。`<meta name="theme-color">` もテーマに合わせて JS で切り替える
+- 各テーマは CSS変数（`--bg`/`--sf`/`--s2`/`--bd`/`--tx`/`--dm`/`--mt`/`--ac`/`--ag`/`--as`/`--ba`/`--bi`/`--bac`/`--ci`/`--cig`/`--ec`/`--ecg`/`--red`/`--endc`/`--endg`、および新設の `--lcdbg`/`--lcdfg`/`--lcdglow`/`--lcdglow2`/`--lcdrad`/`--key1`〜`--key3`/`--keyrad`/`--keytx`/`--chassis-line`）を再定義することで実現し、コンポーネント側の個別 CSS 追加は最小限に抑える
+- フッターのアフィリエイト/広告枠（旧 `.aff-footer`）は運用しないため削除（この方針は継続）
+- **Phase 7.1（フラットデザイン化）**: 全テーマ共通で box-shadow / text-shadow（発光）/ inset shadow / グラデーション、および押下時の `translateY` を廃止。押下フィードバックは `filter:brightness(.8)` または `.active` クラスの配色変化のみで表現する。LED（`.dot`/`.subdot`）・LCD 数字も発光なしのベタ塗り色
+- **Phase 7.2（モック準拠のデザイン固定）**: `DESIGN.md` を一次のデザイン仕様として新設し、以後のテーマ色・配置・キー表記の変更はこのファイルに従う（逸脱する場合は実装前に `DESIGN.md` を更新）
+  - `.app`（筐体面）の背景を各テーマの `--bg`（A `#c9c5bb` / B `#b4b2a9` / C `#2c2c2a`）に変更し、機種名ラベル・表示窓・キーが筐体面の上に直接乗る構成にした。`body` 背景は枠色 `--bd` を使用
+  - 各テーマの筐体面に直接乗る文字（タイトル、Subdivisionラベル、範囲行ラベル、テンポ増減の目盛りなど）は新設の `--dm-onbg` で筐体色に対する可読性を確保（カード/モーダル内の文字は従来どおり `--dm`/`--tx`）
+  - テンポ・パフォーマンス両タブの表示窓上部に機種名ラベル行を追加（A: `RHYTHM METRONOME MR-80` / B: `STEREO TEMPO DECK`（● POWER 併記）/ C: `DIGITAL METRONOME`）
+  - 表示窓の数字を DSEG7 Classic（OFL、`fonts/DSEG7Classic-Bold.woff2` に同梱・オフライン対応）による 7 セグ表示に変更。上下中央、背面に消灯セグメント「888」を薄く重ねる（Phase 7.3 で右詰めに修正、下記参照）
+  - Subdivision ラベルを OFF ボタン直前に固定幅で配置（ラベル＋4ボタンを1行に収める）
+  - テーマ別のキー配色・拍インジケータ・START/STOP表記を追加（A: 拍は四角/START `#e24b4a`、B: テンポキーが `◀◀10`等の矢印表記・START/STOPが `▶ PLAY`/`■ STOP`、C: 拍は `■□` 表記・START のみ `#d85a30`）
+- **Phase 7.3（表示窓の右詰め修正・テーマA配色変更・小節アクセントON/OFF）**
+  - 表示窓の数字・消灯セグメント「888」を右詰めに変更し、同一フォント・文字幅・位置でぴったり重ねる（電卓のように未使用の上位桁だけが消灯表示に見える）。消灯色は各テーマの数字色を不透明度 12% にしたもの
+  - テーマ A（RHYTHM METRONOME MR-80）: テンポ増減キー（−10/−5/−1/+1/+5/+10、パフォーマンスのオフセット含む）を全て `#f1efe8` 地・`#2c2c2a` 字に統一。TAP を `#ef9f27`（旧 −1 の色）、設定ボタン(⚙)を `#d85a30` 地・白字（旧 −10 の色）に変更。START `#e24b4a`・Subdivision `#444441` は現状維持
+  - パフォーマンスタブの設定シート（`#pSet`）に「小節アクセント」トグル（既定 ON）を追加。変数 `pAccent`、`localStorage` キー `metronome-perf-accent` に保存（曲データには含めない）。OFF のとき、パフォーマンス再生の通常スケジューラで小節頭アクセントを無効化（`playClick` に `accent` を渡さない）し、1拍目 LED の強調表示（`.dot.acc`）も通常拍と同じにする。カウントイン・End Check の音、テンポタブの動作は変更なし
 
 ---
 
@@ -261,6 +280,7 @@ Oscillator(low, ≒freq/2, triangle/sine) → Gain(env) ┘
   tempo: 120,               // セクション開始時の BPM
   tempoEnd: 100,             // セクション終了時の BPM（省略時 = tempo、定速）
   tempoCurve: 0,             // -1.0〜+1.0、変化カーブ（既定 0=線形）。type='end' では未使用
+  changeFrom: 1,             // ★セクション内の相対小節（1始まり、既定1）。テンポ変化の開始小節。type='end' では未使用
   timeSig: 4,               // 拍子の分子（1〜12）
   beatUnit: 4,              // ★拍子の分母（4 または 8、既定 4）。BPM はこの音符の毎分数を意味する
   subdivision: 'none'        // ★main のみ: 'none' | '8th' | 'triplet' | '16th'（既定 'none'）。end には付与しない
@@ -287,9 +307,11 @@ JSON → Base64エンコード。バージョン: **`v:5`**（`beatUnit` と `su
 - `tp`=type, `n`=name, `sm`=startMeasure, `m`=measures
 - `t`=tempo, `te`=tempoEnd, `tc`=tempoCurve
 - `ts`=timeSig, **`tu`=beatUnit**, **`sd`=subdivision**（`tu`/`sd` が新規追加）
+- `cf`=changeFrom（既定値 1 のときはキー自体を省略。フォーマットバージョンは据え置き）
 
 **後方互換性**: 読込側 `dec()` はバージョンを見ず、`normalizeSection()` がデフォルト補完する。
 - v:4 以下のデータ（`tu`/`sd` なし）→ `beatUnit: 4`、`subdivision: 'none'` で補完
+- `cf` なしのデータ（v:5 の旧データ含む）→ `changeFrom: 1` で補完
 - localStorage に保存済みの v:4 ライブラリは初回起動時に自動マイグレートされ、編集・保存時に v:5 形式で書き戻される
 
 ---
@@ -362,42 +384,72 @@ function parseTsValue(s) {
 
 ### データ表現
 
-セクションの `tempo`（開始）と `tempoEnd`（終了）、`tempoCurve`（カーブ）の 3 値で表す。`tempoEnd === tempo` または `tempoEnd` 未定義の場合は定速。
+セクションの `tempo`（開始）と `tempoEnd`（終了）、`tempoCurve`（カーブ）、`changeFrom`（変化開始小節）の 4 値で表す。`tempoEnd === tempo` または `tempoEnd` 未定義の場合は定速。
+
+- `changeFrom`: セクション内の相対小節番号（1始まり、既定 1）。`1〜measures` にクランプ。`measures = 0` の場合は常に 1
+- エクスポート時のキーは `cf`（既定値 1 のときはキー自体を省略）。旧データ（`cf` なし）は `normalizeSection()` で `changeFrom: 1` として補完される（後方互換、フォーマットバージョン `v:5` は据え置き）
 
 ### 進捗とカーブ式
 
+セクション内の小節・拍から求めた絶対位置 `pos` と、変化が始まる位置 `startPos` を使う。`changeFrom` の小節より手前は常に開始テンポ（定速）とし、`changeFrom` の小節頭からカーブが始まる。
+
 ```
-t  = (measureIndex * timeSig + beatIndex) / (measures * timeSig)   // 0〜1
-v  = tempoCurve                                                     // -1〜+1
-t' = t ^ (2 ^ v)                                                    // v=0→線形, v=-1→t^0.5, v=+1→t^2
+ts       = timeSig
+pos      = measureIndex * ts + beatIndex                            // セクション内の絶対拍位置（0始まり）
+startPos = (changeFrom - 1) * ts                                    // 変化が始まる拍位置
+total    = measures * ts
+
+t  = pos <= startPos ? 0 : (pos - startPos) / (total - startPos)     // 0〜1（進捗）
+v  = tempoCurve                                                      // -1〜+1
+t' = t ^ (2 ^ v)                                                     // v=0→線形, v=-1→t^0.5, v=+1→t^2
 BPM(t) = tempo + (tempoEnd - tempo) * t'
 ```
 
+- `changeFrom = 1`（既定）の場合、`startPos = 0` となり従来通りセクション全体でカーブする
 - スライダー中央 (v=0): 線形（均等にテンポ変化）
 - スライダー左 (v<0): 早めに変化（前半に大きく動く）
 - スライダー右 (v>0): 遅めに変化（後半に大きく動く）
-- `measures = 0`（手動小節モード）の場合は定速にフォールバック（進捗が定義できないため）
+- `measures = 0`（手動小節モード）の場合は定速にフォールバック（進捗が定義できないため）。`changeFrom` も編集不可（常に 1 扱い）
 
 ### スケジューラへの組み込み
 
-- `createPerformanceTransport.scheduleNext(time)` 内で `currentTempo = tempoAt(sec, progress(...))` に逐次更新
+- `progress(sec, beatIndex, measureIndex)` が `changeFrom` を踏まえた進捗 `t` を返す（`sec.changeFrom` を直接参照）
+- `createPerformanceTransport.scheduleNext(time)` 内で `currentTempo = clampTempo(tempoAt(sec, progress(sec, beatIndex, measureIndex)) + tempoOffset)` に逐次更新
 - `advance()` で `nextNoteTime += 60 / currentTempo`
 - `scheduleSubdivision(time, beatDuration, ...)` の `beatDuration = 60 / currentTempo`
-- `enterMain()` の `currentTempo = clampTempo(sec.tempo)` はセクション先頭の初期化として残す
+- `enterMain()` の `currentTempo = clampTempo(sec.tempo + tempoOffset)` はセクション先頭（`pos=0` で `changeFrom` に関わらず開始テンポと一致）の初期化として残す
 
 ### 曲編集 UI
 
-通常セクションの編集行に以下を追加:
+通常セクションのカードに、常時表示の行を追加する（詳細に隠さない）:
 
-- **終了テンポ** 数値入力（既定値は `tempo` と同じ。空欄なら定速扱い）
-- **カーブ** スライダー（`min=-1 max=1 step=0.1 value=0`）
+- **テンポ変化** セレクト（なし / accel. / rit.）
+  - 状態は `tempoEnd` と `tempo` の大小関係から導出（`tempoEnd > tempo` → accel.、`tempoEnd < tempo` → rit.、それ以外 → なし）
+  - 「accel.」選択時に `tempoEnd` が `tempo` を上回っていなければ `tempoEnd = tempo + 10` に設定。「rit.」選択時に下回っていなければ `tempoEnd = tempo - 10`
+  - 「なし」選択時は `tempoEnd = tempo`、`changeFrom = 1` にリセット
+- **目標テンポ** 数値入力（= `tempoEnd`）。「なし」の間は非表示/disabled
+- **開始小節** 数値入力。**曲全体の絶対小節番号**で表示・入力する（`startMeasure + changeFrom - 1`）。保存時は相対値（`changeFrom = 入力値 - startMeasure + 1`）に変換してクランプ。「なし」または `measures = 0` の間は非表示/disabled
 
-縦長になりすぎないよう、accel/rit 入力は **「詳細を開く」トグル / 折りたたみ行** に隠す方針。エンドセクションには表示しない。
+**テンポ変化のカーブ**（Phase 7.2 でラベル変更。旧「カーブ」）スライダー（`min=-1 max=1 step=0.1 value=0`）と **Subdivision** は既存の「詳細」トグル内に残す。エンドセクションには表示しない。
+- スライダーの目盛りは左「早めに変化」／中央「一定」／右「遅めに変化」を表示（`t^(2^v)` の指数 `v` に対応。`v<0` で早めに変化＝立ち上がりが速い、`v>0` で遅めに変化）
+- スライダー横に小さなカーブ図（SVG）を表示し、現在値に応じて曲線形状をリアルタイムに再描画する（x=小節の進み、y=テンポ）。テンポ変化が「なし」の間はスライダー・カーブ図とも無効表示（disabled + 薄色）
 
 ### ビジュアル
 
+#### 曲編集タブ
+
 - 再生中は BPM 数値を瞬時値で更新（`pUpd()` を `scheduleNext` 内で呼ぶ。`Math.round` で整数化）
 - テンポ名の隣に方向アイコン `↗`（accel）/ `↘`（rit）/ なし（定速）
+
+#### パフォーマンスタブ（目立つ表示）
+
+BPM 表示の下（`pTn` 付近）にタグ行 `#pChg` を常設し、`updateTempoTrend()` と同タイミング（拍ごと）で更新する:
+
+- **変化中**（現在のセクションが変化区間に入っている、`curM >= changeFrom - 1`）: 強調表示。例 `rit. → 100` / `accel. → 140`。accel と rit で配色を変える（`--ec` / `--red`）
+- **変化開始前**（同一セクション内、まだ変化区間の手前）: 控えめ表示。例 `m.13 から rit.`
+- **次セクション予告**（現在のセクション最後の2小節以内で、次セクションが `changeFrom = 1` の変化ありセクション）: 控えめ表示。例 `次: accel. → 140`
+- 上記いずれにも該当しない・カウントイン中・End Check 中・停止中: 空
+- 表示するテンポ値は `tempoOffset` を加算した値（実際の再生テンポと整合させる）
 
 ---
 
@@ -407,7 +459,7 @@ BPM(t) = tempo + (tempoEnd - tempo) * t'
 
 ### 仕様
 
-- **配置**: パフォーマンスタブの BPM 数値の直下に `[ -10 ] [ In tempo ] [ +10 ]` を横並び
+- **配置**: パフォーマンスタブの BPM 数値の直下に、1段目 `[ -10 ][ -5 ][ -1 ][ +1 ][ +5 ][ +10 ]` を横並び均等割り、2段目に横長の `[ In tempo ]` ボタン
 - **状態**: グローバル変数 `tempoOffset`（初期値 0、範囲 -200〜+200）
 - **適用**: `scheduleNext` 内で `currentTempo = clampTempo(tempoAt(sec, progress(...)) + tempoOffset)`
 - **BPM 表示**:
@@ -420,9 +472,10 @@ BPM(t) = tempo + (tempoEnd - tempo) * t'
 
 ### UI
 
-- ボタンは既存の `.fb` スタイル（`min-width:44px; min-height:44px; pill 形`）を流用
-- `In tempo` ボタンのみ最低幅 120px に拡張してオフセット値併記の余裕を持たせる
-- `.ofb`（offset buttons）クラスで flex 横並び中央寄せ
+- ボタンは既存の `.fb` スタイル（`min-width:44px; min-height:48px; pill 形`）を流用
+- `In tempo` ボタンのみ最低幅 120px・横幅いっぱい（`.ofwide`）に拡張してオフセット値併記の余裕を持たせる
+- `.ofb`（offset buttons コンテナ）内を `.ofrow`（1段目 6 ボタン、flex 均等割り）と `In tempo`（2段目、横長）の2段構成にする
+- id: 新設 `pOfM5`(−5) `pOfM1`(−1) `pOfP1`(+1) `pOfP5`(+5)。既存 `pOfM`(−10) `pOfP`(+10) `pOf0`(In tempo) は維持し、いずれも既存 `applyTempoOffset(delta)` / `resetTempoOffset` を再利用
 
 ---
 
@@ -437,7 +490,7 @@ BPM(t) = tempo + (tempoEnd - tempo) * t'
 
 ---
 
-## モバイルUI要件（1画面完結）
+## モバイルUI要件（再生コア1画面 + 設定はスクロール）
 
 ### ターゲット環境
 
@@ -461,25 +514,37 @@ BPM(t) = tempo + (tempoEnd - tempo) * t'
   ```
 - `<meta name="viewport">` に `viewport-fit=cover` を追加すること
 
-### レイアウト優先順位
+### レイアウト優先順位（Phase 7 で全面刷新）
 
-- **主要コントロール**（Start/Stop ボタン、BPM 調整、Subdivision トグル）は**画面下半分**に優先配置
+- Phase 6 までの `.play-top`（再生コア）/`.play-bottom`（設定・スクロール可）の2ブロック構成をやめ、**テンポ・パフォーマンスタブ全体を `.play-tab.active{flex:1;min-height:0}` としてスクロールなしの1画面**に収める
+  - 画面内の並び（上から）: 機種名ラベル行（Phase 7.2 で追加）→ `.lcd-wrap`（BPM LCD＋拍 LED、パフォーマンスは曲名/セクション表示も含む）→ **パフォーマンスタブのみ練習範囲行 `#rR`（`#rF`/`#rT`、Phase 7.2 でモーダルシートからメイン画面へ移動）** → テンポ操作（テンポタブ: スライダー+±1/±5/±10 / パフォーマンスタブ: オフセット±1/±5/±10+In tempo）→ テンポタブのみ Subdivision（4ボタン）→ **最下段 `.pw.bottom-bar`（`margin-top:auto` で下端に固定）: ⚙設定 + TAP + START/STOP**
+  - 使用頻度の低い設定はモーダルシート（`.mo`/`.md` を流用、開閉のみの軽量 JS）に退避する。DOM 上の ID は維持し、要素を移動しただけで JS ロジックは変更していない
+    - テンポタブ: `#mSet`（拍子セレクト `#mTsSel`）
+    - パフォーマンスタブ: `#pSet`（Tap Off `#ciT`/`#ciS`、End Check `#ecT`/`#ecBS`/`#ecTS`、**Phase 7.1でSubdivision ON/OFF `#pSubGrp` もここへ移動**）。練習範囲 `#rF`/`#rT` は Phase 7.2 でメイン画面（`#tab-perf` の `.lcd-wrap` 直後）へ移動し、`#pSet` からは削除済み（ID・JSロジックは変更なし）
+  - **Phase 7.1**: 設定ボタン（`#mGear`/`#pGear`）は `.lcd-wrap` 内の右上absolute配置から**最下段バー `.pw.bottom-bar` の左端**へ移動。並びは `[⚙設定][TAP][START/STOP]`（テンポタブ）/ `[⚙設定][START/STOP]`（パフォーマンスタブ）。高さは他ボタンと揃え、幅比は 設定:TAP:START = 1:1:2
 - タップターゲットは最低 **44×44px** を確保
-- ±1/±5/±10 ボタン（`.fb`）は **min-width / min-height ともに 44px**
+- ±1/±5/±10 ボタン（`.fb`）は **min-width 44px / min-height 48px 以上**
+
+### LCD内表示（Phase 7.1）
+
+- BPM数値（`#mBv`/`#pBv`）は LCD パネル（`.lcd-panel`）内の左側に大きく表示し、右側に `.bv-side` として BPM ラベルと速度記号（`#mTn`/`#pTn`）を上下2段で並べる
+- パフォーマンスタブでは accel/rit タグ（`#pChg`）と↗↘（`.trend`/`#pTrend`）も `.bv-side` 内、速度記号の下に配置する
+- DOM移動のみで、要素の ID・JSロジックは維持
 
 ### スタートボタンと Tap Tempo のレイアウト
 
-- スタートボタン（`.pb`）は **角丸四角（pill）** 形状で 220×64px、`border-radius: 32px`
-- **テンポページ**: スタートボタンの左に Tap Tempo を横並び。Tap Tempo は同じ pill 形状で **110×64px（高さ同じ、幅狭）**。`.pw` を flex コンテナにして `[Tap] [Start]` を中央揃え
-- **パフォーマンスページ**: タップテンポなし。スタートボタン単独を中央配置（同じ 220×64 サイズ）
-- iPhone SE（375×667）で破綻しないこと。狭幅では gap や周辺マージンを縮めて対応
+- スタートボタン（`.pb`）は `.pw.bottom-bar` 内に配置し、**高さ 56px 以上**の角丸四角（pill）形状
+- **テンポページ**: 設定ボタン・Tap Tempo・スタートボタンを横並び。`flex:1`（設定）/`flex:1`（Tap）/`flex:2`（START）の比率で **START が横幅の半分程度**を占める
+- **パフォーマンスページ**: タップテンポなし。設定ボタン（`flex:1`）＋スタートボタン（`flex:2`）
+- iPhone SE（375×667）で破綻しないこと。BPM LCD のフォントサイズは `clamp(40px,10svh,76px)` で画面高に応じて自動縮小する
 
 ### タッチ・スクロール挙動
 
-- **テンポ・パフォーマンスタブ**: 1 画面に収めることが前提のため、iOS Safari/Chrome のバウンス（rubber-band）とプルトゥリフレッシュを抑止する
-  - `html, body { overscroll-behavior: none }`
-  - 当該タブに `touch-action: pan-x pinch-zoom` を付与し、縦スワイプによるスクロールを止める
+- **テンポ・パフォーマンスタブ**: 上記の1画面レイアウトによりスクロール自体が発生しない（`document.documentElement.scrollHeight <= clientHeight` を維持）
+  - `body` は `overflow-y:auto`（固定 `height:100vh`/`overflow:hidden` はやめ、`min-height:100svh` のみ指定）。曲編集・ライブラリタブはこの挙動でスクロールする
+  - iOS のバウンス（rubber-band）・プルトゥリフレッシュ抑止は維持: `html,body{overscroll-behavior:none}` に加え `body{overscroll-behavior-y:contain}`
   - スライダー（`input[type=range]`）には `touch-action: pan-x` を残し、横操作を確保する
+  - 設定シート（`#mSet`/`#pSet`）表示中はその上に重なるのみで、背後のタブレイアウトは変化しない
 - **曲編集・ライブラリタブ**: コンテンツが長くなるためスクロール可（既存の `overflow:auto` を維持）
 - ランドスケープ用メディアクエリ（`@media (orientation:landscape) and (max-height:500px)` で `body{overflow:auto}`）は維持
 
@@ -491,6 +556,7 @@ accel/rit「⋯ 詳細」トグル追加でセクションカードが縦に伸�
 - 4 列フィールド（開始小節 / 小節数 / テンポ / 拍子）の gap を詰める、ラベル文字サイズを小さく
 - `.sdet summary` の高さを 24〜28px 程度に抑える
 - 過度に詰めて操作性を損なわないこと（タップターゲットは引き続き確保）
+- 曲編集・ライブラリはスクロール前提のため、入力欄（`.sni`、`.fg input`/`.fg select`）は **min-height 40px 前後・font-size 16px 以上**にして iOS Safari のフォーカス時自動ズームを防ぐ。移動/削除ボタン（`.mvb`/`.sdel`）もあわせて一回り拡大する
 
 ---
 
