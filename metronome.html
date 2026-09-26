@@ -708,10 +708,11 @@ function assignLabels(){
   secs.forEach(s=>{if(s.type==='end')s.label='End';else{s.label=secLabel(mi);mi++}});
 }
 function tN(b){if(b<40)return'Grave';if(b<55)return'Largo';if(b<66)return'Larghetto';if(b<76)return'Adagio';if(b<92)return'Andante';if(b<108)return'Moderato';if(b<120)return'Allegretto';if(b<156)return'Allegro';if(b<176)return'Vivace';if(b<200)return'Presto';return'Prestissimo'}
-function clampTempo(v){return Math.max(20,Math.min(400,v||120))}
-function clampBeats(v){return Math.max(1,Math.min(12,v||4))}
+function clampTempo(v){const n=parseFloat(v);return Math.max(20,Math.min(400,Number.isFinite(n)?n:120))}
+function clampBeats(v){const n=parseInt(v,10);return Math.max(1,Math.min(12,Number.isFinite(n)?n:4))}
 function clampBeatUnit(v){return v===8?8:4}
 function clampCurve(v){return Math.max(-1,Math.min(1,Number.isFinite(v)?v:0))}
+function clampInt(v,min,max,def){const n=parseInt(v,10);return Math.max(min,Math.min(max,Number.isFinite(n)?n:def))}
 function curvePathD(v){
   v=clampCurve(parseFloat(v)||0);
   const w=40,h=28,pad=2,steps=12;
@@ -736,21 +737,33 @@ function parseTsValue(s){
   const [a,b]=String(s).split('/').map(n=>parseInt(n,10));
   return[clampBeats(a),clampBeatUnit(b)];
 }
+const MAX_SECTIONS=200;
 function normalizeSection(s){
-  const n={type:s.type||s.tp||'main',label:s.label||'',name:s.name||s.n||'',startMeasure:s.startMeasure??s.sm??1,measures:s.measures??s.m??0,tempo:clampTempo(s.tempo??s.t??120),timeSig:clampBeats(s.timeSig??s.ts??4),beatUnit:clampBeatUnit(s.beatUnit??s.tu??4)};
+  s=s&&typeof s==='object'?s:{};
+  const rawType=s.type??s.tp;
+  const n={
+    type:rawType==='end'?'end':'main',
+    label:String(s.label??''),
+    name:String(s.name??s.n??''),
+    startMeasure:clampInt(s.startMeasure??s.sm,1,999,1),
+    measures:clampInt(s.measures??s.m,0,999,0),
+    tempo:clampTempo(s.tempo??s.t),
+    timeSig:clampBeats(s.timeSig??s.ts),
+    beatUnit:clampBeatUnit(s.beatUnit??s.tu)
+  };
   if(n.type==='main'){
     n.tempoEnd=clampTempo(s.tempoEnd??s.te??n.tempo);
     n.tempoCurve=clampCurve(parseFloat(s.tempoCurve??s.tc??0));
     const sd=s.subdivision??s.sd;
     n.subdivision=SUBDIVISION_STATES.some(x=>x.key===sd)?sd:'none';
-    const cf=parseInt(s.changeFrom??s.cf??1,10)||1;
+    const cf=clampInt(s.changeFrom??s.cf,1,999,1);
     n.changeFrom=n.measures>0?Math.max(1,Math.min(n.measures,cf)):1;
   }else{
     n.measures=1;
   }
   return n;
 }
-function normalizeSections(list){return(list||[]).map(normalizeSection)}
+function normalizeSections(list){return(Array.isArray(list)?list:[]).slice(0,MAX_SECTIONS).map(normalizeSection)}
 function progress(sec,beatIndex,measureIndex){
   if(!sec||sec.measures<=0)return 0;
   const ts=clampBeats(sec.timeSig);
@@ -964,10 +977,10 @@ function upSB(){
     const s=secs[curS];
     if(s.type==='end'){sb.innerHTML=`<span class="tg tg-end">End</span>`;return}
     const nm=s.name?` — ${escapeHtml(s.name)}`:'';
-    sb.innerHTML=`<span class="tg tg-n">${s.label}${nm}</span><div class="mc">小節 ${curM+1}${s.measures>0?' / '+s.measures:' (手動)'} ・ ${tsLabel(s.timeSig,s.beatUnit)}</div>`;
+    sb.innerHTML=`<span class="tg tg-n">${escapeHtml(s.label)}${nm}</span><div class="mc">小節 ${curM+1}${s.measures>0?' / '+s.measures:' (手動)'} ・ ${tsLabel(s.timeSig,s.beatUnit)}</div>`;
     return;
   }
-  sb.innerHTML=`<span class="tg tg-off">${secs[rF]?.label||''} → ${secs[rT]?.label||''}</span>`;
+  sb.innerHTML=`<span class="tg tg-off">${escapeHtml(secs[rF]?.label||'')} → ${escapeHtml(secs[rT]?.label||'')}</span>`;
 }
 function upRange(){
   const rf=$('rF'),rt=$('rT');
@@ -1221,7 +1234,7 @@ function renderSL(){
     if(s.type==='end')cls+=' is-end';
     c.className=cls;
     if(s.type==='end'){
-      c.innerHTML=`<div class="sch"><span class="slet el">End</span><input class="sni" type="text" value="${escapeHtml(s.name)}" placeholder="Ending" data-i="${i}" data-f="name"><button class="sdel" data-i="${i}">×</button></div>
+      c.innerHTML=`<div class="sch"><span class="slet el">${escapeHtml(s.label)}</span><input class="sni" type="text" value="${escapeHtml(s.name)}" placeholder="Ending" data-i="${i}" data-f="name"><button class="sdel" data-i="${i}">×</button></div>
         <div class="sfs f2"><div class="fg"><label>開始小節</label><input type="number" min="1" max="999" value="${s.startMeasure}" data-i="${i}" data-f="startMeasure"></div><div class="fg"><label>テンポ</label><input type="number" min="20" max="400" value="${s.tempo}" data-i="${i}" data-f="tempo"></div></div>`;
     }else{
       const mv=`<div class="smv"><button class="mvb" data-d="up" data-i="${i}">▲</button><button class="mvb" data-d="dn" data-i="${i}">▼</button></div>`;
@@ -1233,7 +1246,7 @@ function renderSL(){
       const cf=Math.max(1,Math.min(s.measures>0?s.measures:1,s.changeFrom||1));
       const startAbs=s.startMeasure+cf-1;
       const chgHidden=chgKind==='none'||measuresZero;
-      c.innerHTML=`<div class="sch">${mv}<span class="slet">${s.label}</span><input class="sni" type="text" value="${escapeHtml(s.name)}" placeholder="セクション名" data-i="${i}" data-f="name"><button class="sdel" data-i="${i}">×</button></div>
+      c.innerHTML=`<div class="sch">${mv}<span class="slet">${escapeHtml(s.label)}</span><input class="sni" type="text" value="${escapeHtml(s.name)}" placeholder="セクション名" data-i="${i}" data-f="name"><button class="sdel" data-i="${i}">×</button></div>
         <div class="sfs f4"><div class="fg"><label>開始小節</label><input type="number" min="1" max="999" value="${s.startMeasure}" data-i="${i}" data-f="startMeasure"></div><div class="fg"><label>小節数</label><input type="number" min="0" max="999" value="${s.measures}" data-i="${i}" data-f="measures"></div><div class="fg"><label>テンポ</label><input type="number" min="20" max="400" value="${s.tempo}" data-i="${i}" data-f="tempo"></div><div class="fg"><label>拍子</label><select data-i="${i}" data-f="tsCombo">${tsOptions}</select></div></div>
         <div class="sfs f3"><div class="fg"><label>テンポ変化</label><select data-i="${i}" data-f="chgKind"><option value="none"${chgKind==='none'?' selected':''}>なし</option><option value="accel"${chgKind==='accel'?' selected':''}>accel.</option><option value="rit"${chgKind==='rit'?' selected':''}>rit.</option></select></div><div class="fg${chgHidden?' chghidden':''}"><label>目標テンポ</label><input type="number" min="20" max="400" value="${te}" data-i="${i}" data-f="tempoEnd"${chgHidden?' disabled':''}></div><div class="fg${chgHidden?' chghidden':''}"><label>開始小節</label><input type="number" min="${s.startMeasure}" max="${s.startMeasure+Math.max((s.measures||1)-1,0)}" value="${startAbs}" data-i="${i}" data-f="changeFromAbs"${chgHidden?' disabled':''}></div></div>
         <details class="sdet"${open}><summary>詳細</summary><div class="sfs f2"><div class="fg${chgHidden?' curvedisabled':''}"><label>テンポ変化のカーブ</label><div class="curvewrap"><div class="curveslider"><input type="range" min="-1" max="1" step="0.1" value="${tc}" data-i="${i}" data-f="tempoCurve"${chgHidden?' disabled':''}><div class="curveticks"><span>早めに変化</span><span class="ct-c">一定</span><span>遅めに変化</span></div></div><svg class="curvesvg" data-cvs="${i}" viewBox="0 0 40 28"><path d="${curvePathD(tc)}"/></svg></div><div class="curvev" data-cv="${i}">${Number(tc).toFixed(1)}</div></div><div class="fg"><label>Subdivision</label><select data-i="${i}" data-f="subdivision">${subOptions}</select></div></div></details>`;
@@ -1244,6 +1257,7 @@ function renderSL(){
     el.addEventListener('change',e=>{
       const i=parseInt(e.target.dataset.i,10),f=e.target.dataset.f;
       if(isNaN(i))return;
+      if(pPlaying)pStop();
       if(f==='name')secs[i].name=e.target.value;
       else if(f==='startMeasure'){secs[i].startMeasure=Math.max(1,parseInt(e.target.value,10)||1);e.target.value=secs[i].startMeasure}
       else if(f==='tempo'){const old=secs[i].tempo;secs[i].tempo=clampTempo(parseInt(e.target.value,10)||120);if(secs[i].tempoEnd==null||secs[i].tempoEnd===old)secs[i].tempoEnd=secs[i].tempo;e.target.value=secs[i].tempo}
@@ -1286,15 +1300,16 @@ function renderSL(){
     });
   });
   $('sList').querySelectorAll('.sdel').forEach(el=>{
-    el.addEventListener('click',e=>{secs.splice(parseInt(e.currentTarget.dataset.i,10),1);assignLabels();renderSL();upSB();saveCur();upRange()});
+    el.addEventListener('click',e=>{if(pPlaying)pStop();secs.splice(parseInt(e.currentTarget.dataset.i,10),1);assignLabels();renderSL();upSB();saveCur();upRange()});
   });
   $('sList').querySelectorAll('.mvb').forEach(el=>{
     el.addEventListener('click',()=>{
       const i=parseInt(el.dataset.i,10),d=el.dataset.d;
       if(secs[i].type==='end')return;
-      if(d==='up'&&i>0&&secs[i-1].type!=='end'){[secs[i-1],secs[i]]=[secs[i],secs[i-1]]}
+      if(d==='up'&&i>0&&secs[i-1].type!=='end'){if(pPlaying)pStop();[secs[i-1],secs[i]]=[secs[i],secs[i-1]]}
       else if(d==='dn'&&i<secs.length-1){
         if(secs[i+1].type==='end')return;
+        if(pPlaying)pStop();
         [secs[i],secs[i+1]]=[secs[i+1],secs[i]];
       }else return;
       assignLabels();
@@ -1305,6 +1320,7 @@ function renderSL(){
   });
 }
 $('addS').addEventListener('click',()=>{
+  if(pPlaying)pStop();
   const endIdx=secs.findIndex(s=>s.type==='end');
   const ins=endIdx>=0?endIdx:secs.length;
   const prev=ins>0?secs[ins-1]:null;
@@ -1322,6 +1338,7 @@ $('addS').addEventListener('click',()=>{
 });
 $('addE').addEventListener('click',()=>{
   if(secs.some(s=>s.type==='end')){toast('エンドは1つのみ');return}
+  if(pPlaying)pStop();
   const prev=secs.length>0?secs[secs.length-1]:null;
   const sm=prev?(prev.startMeasure+(prev.measures||4)):1;
   const t=prev?(prev.type==='main'?(prev.tempoEnd??prev.tempo):prev.tempo):mBpm;
@@ -1336,10 +1353,25 @@ $('addE').addEventListener('click',()=>{
   upRange();
 });
 
-function saveLib(){try{localStorage.setItem('metronome-lib',JSON.stringify(lib))}catch(e){}}
-function loadLib(){try{const r=localStorage.getItem('metronome-lib');if(r)lib=JSON.parse(r);lib=lib.map(s=>({...s,sections:normalizeSections(s.sections)}));saveLib()}catch(e){lib=[]}}
-function saveCur(){if(!curSId)return;const i=lib.findIndex(s=>s.id===curSId);if(i>=0){lib[i].title=sTitle;lib[i].sections=JSON.parse(JSON.stringify(secs))}saveLib()}
-function loadSong(s){resetTempoOffset();curSId=s.id;sTitle=s.title;$('sT').value=sTitle;secs=normalizeSections(JSON.parse(JSON.stringify(s.sections||[])));assignLabels();curS=-1;curM=0;rF=0;rT=Math.max(0,secs.length-1);updateAll()}
+let lastSaveFailAt=0;
+function saveLib(){
+  try{localStorage.setItem('metronome-lib',JSON.stringify(lib));return true}
+  catch(e){return false}
+}
+function saveLibNotify(force){
+  const ok=saveLib();
+  if(!ok){
+    const now=Date.now();
+    if(force||now-lastSaveFailAt>4000){
+      lastSaveFailAt=now;
+      toast('保存に失敗しました。エクスポートで退避してください');
+    }
+  }
+  return ok;
+}
+function loadLib(){try{const r=localStorage.getItem('metronome-lib');if(r)lib=JSON.parse(r);lib=lib.map(s=>({...s,sections:normalizeSections(s.sections)}));saveLibNotify(false)}catch(e){lib=[]}}
+function saveCur(){if(!curSId)return true;const i=lib.findIndex(s=>s.id===curSId);if(i>=0){lib[i].title=sTitle;lib[i].sections=JSON.parse(JSON.stringify(secs))}return saveLibNotify(false)}
+function loadSong(s){if(pPlaying)pStop();resetTempoOffset();curSId=s.id;sTitle=s.title;$('sT').value=sTitle;secs=normalizeSections(JSON.parse(JSON.stringify(s.sections||[])));assignLabels();curS=-1;curM=0;rF=0;rT=Math.max(0,secs.length-1);updateAll()}
 
 function renderLL(){
   const l=$('lList');
@@ -1364,7 +1396,7 @@ function renderLL(){
       if(d==='up'&&i>0){[lib[i-1],lib[i]]=[lib[i],lib[i-1]]}
       else if(d==='dn'&&i<lib.length-1){[lib[i],lib[i+1]]=[lib[i+1],lib[i]]}
       else return;
-      saveLib();
+      saveLibNotify(false);
       renderLL();
     });
   });
@@ -1376,7 +1408,7 @@ function renderLL(){
         if(!confirm('削除？'))return;
         lib=lib.filter(s=>s.id!==id);
         if(curSId===id){curSId=null;sTitle='';$('sT').value='';secs=[];updateAll()}
-        saveLib();
+        saveLibNotify(false);
         renderLL();
       }
       if(a==='exp'){
@@ -1393,7 +1425,7 @@ function switchTab(t){
   if(t==='song')renderSL();
   if(t==='lib')renderLL();
 }
-$('newS').addEventListener('click',()=>{resetTempoOffset();saveCur();const id='s'+Date.now();const s={id,title:'',sections:[]};lib.push(s);saveLib();loadSong(s);switchTab('song')});
+$('newS').addEventListener('click',()=>{resetTempoOffset();saveCur();const id='s'+Date.now();const s={id,title:'',sections:[]};lib.push(s);saveLibNotify(true);loadSong(s);switchTab('song')});
 $('svL').addEventListener('click',()=>{
   sTitle=$('sT').value;
   if(!curSId){curSId='s'+Date.now();lib.push({id:curSId,title:sTitle,sections:JSON.parse(JSON.stringify(secs))})}
@@ -1402,8 +1434,8 @@ $('svL').addEventListener('click',()=>{
     if(i>=0){lib[i].title=sTitle;lib[i].sections=JSON.parse(JSON.stringify(secs))}
     else lib.push({id:curSId,title:sTitle,sections:JSON.parse(JSON.stringify(secs))});
   }
-  saveLib();
-  toast('保存しました');
+  const ok=saveLibNotify(true);
+  if(ok)toast('保存しました');
   renderLL();
 });
 
@@ -1415,8 +1447,8 @@ $('exCl').addEventListener('click',()=>$('exM').classList.remove('show'));
 $('exCp').addEventListener('click',()=>{$('exA').select();navigator.clipboard.writeText($('exA').value).then(()=>toast('コピーしました')).catch(()=>{document.execCommand('copy');toast('コピーしました')})});
 $('imB').addEventListener('click',()=>{$('imA').value='';$('imM').classList.add('show')});
 $('imCl').addEventListener('click',()=>$('imM').classList.remove('show'));
-$('imLd').addEventListener('click',()=>{const d=dec($('imA').value);if(!d){toast('無効なコード');return}saveCur();const id='s'+Date.now();const s={id,title:d.title,sections:d.sections};lib.push(s);saveLib();loadSong(s);$('imM').classList.remove('show');toast('読み込みました')});
-$('clB').addEventListener('click',()=>{if(!confirm('クリア？'))return;resetTempoOffset();sTitle='';$('sT').value='';secs=[];curS=-1;curM=0;updateAll();saveCur()});
+$('imLd').addEventListener('click',()=>{const d=dec($('imA').value);if(!d){toast('無効なコード');return}saveCur();const id='s'+Date.now();const s={id,title:d.title,sections:d.sections};lib.push(s);const ok=saveLibNotify(true);loadSong(s);$('imM').classList.remove('show');if(ok)toast('読み込みました')});
+$('clB').addEventListener('click',()=>{if(!confirm('クリア？'))return;if(pPlaying)pStop();resetTempoOffset();sTitle='';$('sT').value='';secs=[];curS=-1;curM=0;updateAll();saveCur()});
 $('sT').addEventListener('input',e=>{sTitle=e.target.value;upSTB()});
 
 document.querySelectorAll('.tb').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.t)));

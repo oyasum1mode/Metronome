@@ -81,6 +81,7 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
 - 「+ 新しい曲を作成」ボタン
 - データはブラウザの `localStorage` で永続化（キー: `metronome-lib`）
 - 初回起動時は曲一覧が空。ユーザーが作成・保存した曲のみがそのブラウザに残る（端末・ブラウザをまたぐ共有はエクスポート/インポート経由）
+- **保存失敗時の通知**: `saveLib()` は `localStorage.setItem` の例外を握りつぶさず真偽値を返す。保存ボタン（`svL`）は成功時のみ「保存しました」を表示し、失敗時は「保存に失敗しました。エクスポートで退避してください」を表示する。セクション編集などの自動保存（`saveCur()` 経由）が失敗した場合も同じ toast を出すが、短時間の連続失敗ではトーストの再表示を抑制する（`saveLibNotify()` のデバウンス）
 
 ---
 
@@ -314,6 +315,11 @@ JSON → Base64エンコード。バージョン: **`v:5`**（`beatUnit` と `su
 - `cf` なしのデータ（v:5 の旧データ含む）→ `changeFrom: 1` で補完
 - localStorage に保存済みの v:4 ライブラリは初回起動時に自動マイグレートされ、編集・保存時に v:5 形式で書き戻される
 
+**入力検証（インポート・localStorage 読込共通）**: `normalizeSection()` は外部由来（共有コード・localStorage）の値を無条件に信用しない。
+- `startMeasure` は 1〜999、`measures` は 0〜999 にクランプ（数値化できない値は既定値）。`type` は `'main'`／`'end'` 以外なら `'main'` として扱う
+- `name`・`label`・曲タイトルは常に `String()` 化した上で描画時に `escapeHtml()` を通す（`renderSL`・`renderLL`・`upSB` などの `innerHTML` 生成箇所すべて）
+- 1曲あたりのセクション数は最大 **200** に制限（`normalizeSections` で切り詰め）
+
 ---
 
 ## 拍子（Time Signature）
@@ -468,6 +474,7 @@ BPM 表示の下（`pTn` 付近）にタグ行 `#pChg` を常設し、`updateTem
 - **In tempo ボタン**: 現在値を併記。例: オフセット 0 → `In tempo`、+30 → `In tempo (+30)`、-20 → `In tempo (-20)`
 - **リセットタイミング**: `loadSong` / `newS`（新規曲作成）/ `clB`（クリア）の冒頭で 0 にリセット
 - **保持**: 再生停止 / タブ切替では保持。リロードで 0（localStorage には保存しない）
+- **再生中の曲切替**: パフォーマンス再生中にライブラリから別の曲を選ぶ（`loadSong`）、新規作成、インポート、クリア、またはセクションの追加・削除・並べ替え・小節数/拍子などの編集を行った場合は、切替・変更の直前に `pStop()` で再生を停止してから状態を切り替える（旧曲の拍子・小節などの内部状態が新しい再生に混入しないようにするため）
 - **適用範囲**: パフォーマンスタブのみ。テンポタブ（`createMetroTransport`）には影響させない
 
 ### UI
@@ -617,6 +624,7 @@ accel/rit「⋯ 詳細」トグル追加でセクションカードが縦に伸�
 - キャッシュ戦略: **Cache First**（静的アセット向け）
 - キャッシュ対象: `metronome.html`、`manifest.json`、アイコン類、Google Fonts
 - オフライン時はキャッシュ版を返す
+- `activate` イベントで古いキャッシュを削除する際は、削除対象を `key.startsWith('metronome-pro-') && key !== CACHE_NAME` に限定する（同一オリジン上の他アプリ・他リポジトリのキャッシュを誤って削除しないため）。`CACHE_NAME` はバージョンアップ時にインクリメントする（現行 `metronome-pro-v15`）
 
 ### Wake Lock API
 

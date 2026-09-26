@@ -1,4 +1,4 @@
-const CACHE_NAME='metronome-pro-v14';
+const CACHE_NAME='metronome-pro-v15';
 const APP_SHELL=['./','./index.html','./metronome.html','./manifest.json','./fonts/DSEG7Classic-Bold.woff2'];
 const FONT_HOSTS=['fonts.googleapis.com','fonts.gstatic.com'];
 
@@ -10,7 +10,7 @@ self.addEventListener('install',event=>{
 
 self.addEventListener('activate',event=>{
   event.waitUntil(
-    caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE_NAME).map(key=>caches.delete(key)))).then(()=>self.clients.claim())
+    caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('metronome-pro-')&&key!==CACHE_NAME).map(key=>caches.delete(key)))).then(()=>self.clients.claim())
   );
 });
 
