@@ -6,12 +6,14 @@
 
 ## 主な機能
 
-- **テンポタブ** — 独立メトロノーム。BPM 20〜400、Tap Tempo、Subdivision（8th/Triplet/16th）
-- **パフォーマンスタブ** — 曲を読み込んで再生。Tap Off（カウントイン）、End Check（終了確認ビート）、練習範囲指定、Subdivision、テンポオフセット（±10/In tempo で全体ずらし）
-- **曲編集** — セクション単位で BPM・拍子・小節数を設定。accel/rit のテンポ変化と変化カーブも指定可
-- **ライブラリ** — 曲を `localStorage` に保存、エクスポート/インポート（Base64）で端末間共有
-- PWA（オフライン動作、ホーム画面追加対応）、Wake Lock、ダークテーマ固定
-- iOS Safari/Chrome ではバウンス・プルトゥリフレッシュを抑止して 1 画面に収まるレイアウト
+- **テンポタブ** — 独立メトロノーム。BPM 20〜400、Tap Tempo、Subdivision（8th/Triplet/16th）、テンポオフセット±1/±5/±10
+- **パフォーマンスタブ** — 曲を読み込んで再生。Tap Off（カウントイン）、End Check（終了確認ビート）、練習範囲指定（メイン画面常時表示）、Subdivision ON/OFF、小節アクセント ON/OFF、テンポオフセット（±1/±5/±10・In tempo で全体ずらし）、rit./accel. の予告表示
+- **曲編集** — セクション単位で BPM・拍子・小節数を設定。accel/rit のテンポ変化を小節途中（`changeFrom`）から開始可能、変化カーブも指定可。次セクション/エンドブロック追加時は変化後テンポ・拍子を自動引き継ぎ
+- **ライブラリ** — 曲を `localStorage` に保存、エクスポート/インポート（Base64）で端末間共有、並べ替え対応
+- **音色 高/低 切替** — クリック音（矩形波の電子音）のピッチをヘッダーの音色ボタンで切替
+- **テーマ切替** — 80年代機器風の3テーマ（rhythm/deck/calc）をヘッダーの THEME ボタンで循環切替。デザイン仕様は `DESIGN.md` を参照
+- PWA（オフライン動作、ホーム画面追加対応）、Wake Lock
+- iOS Safari/Chrome ではバウンス・プルトゥリフレッシュを抑止して 1 画面（iPhone SE 相当）に収まるレイアウト。設定シートに Tap Off / End Check / Subdivision / 小節アクセントをまとめ、再生コアは常時1画面表示
 
 ## 使い方
 
@@ -26,6 +28,9 @@
 - `localStorage` キー:
   - `metronome-lib` — 曲ライブラリ（曲名 + セクション配列）
   - `metronome-volume` — マスター音量
+  - `metronome-sound` — 音色設定（`high` / `low`）
+  - `metronome-theme` — テーマ設定（`rhythm` / `deck` / `calc`）
+  - `metronome-perf-accent` — パフォーマンスタブの小節アクセント ON/OFF
 - 端末・ブラウザをまたぐ共有は曲編集タブのエクスポート（Base64）/ インポートで
 
 ## モバイル / Bluetooth について
@@ -42,7 +47,11 @@
 - `icons/icon.svg` — アイコンマスター
 - `icons/icon-192.png` / `icon-512.png` / `apple-touch-icon.png` — PWA アイコン
 - `icon-builder.html` — アイコン PNG 書き出し用ツール（開発用）
-- `METRONOME_SPEC.md` — 詳細仕様
+- `fonts/` — 表示窓の7セグフォント（DSEG7 Classic、OFLライセンス同梱）
+- `METRONOME_SPEC.md` — 機能仕様（一次情報）
+- `DESIGN.md` — テーマ・レイアウトのデザイン仕様（一次情報）
+- `USER_GUIDE.md` — 利用者向け取扱説明書
+- `STATUS.md` — 現在地・次アクションのサマリ
 
 ## 開発
 

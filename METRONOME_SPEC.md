@@ -5,6 +5,8 @@
 曲ごとにセクション分割し、テンポ・拍子チェンジを管理して練習できる。  
 GitHub Pages で配布する PWA 対応 Web アプリ。
 
+> 本書は**機能仕様**の一次情報。デザイン（色・配置・キー表記など）は `DESIGN.md` が一次仕様。利用者向けの説明は `USER_GUIDE.md`、現在地・次アクションは `STATUS.md` を参照。`CODEX_PROMPT.md` は Phase 5 当時のハンドオフ履歴。
+
 ---
 
 ## ファイル構成
@@ -17,6 +19,12 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
 - `icons/icon-512.png` — PWA アイコン（512×512px）
 - `icons/apple-touch-icon.png` — iOS Safari ホーム画面アイコン（180×180px）
 - `icon-builder.html` — `icon.svg` から PNG 3 サイズを書き出すローカル変換ツール（公開対象外、開発用）
+- `fonts/DSEG7Classic-Bold.woff2` / `fonts/DSEG-LICENSE.txt` — 表示窓の7セグフォント（OFLライセンス、オフライン動作のため同梱）
+- `DESIGN.md` — テーマ・レイアウトのデザイン仕様（一次情報）
+- `METRONOME_SPEC.md` — 本ファイル（機能仕様の一次情報）
+- `USER_GUIDE.md` — 利用者向け取扱説明書
+- `STATUS.md` — 現在地・次アクションのサマリ
+- `CODEX_PROMPT.md` — Phase 5 当時の Codex 向けハンドオフ履歴
 
 > `manifest.json`・`sw.js`・`icons/` は PWA 化（Phase 4）で新規追加するファイル。  
 > Service Worker はセキュリティ制約上 HTML に inline できないため別ファイル必須。  
@@ -120,7 +128,7 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
 | 状態 | 分割数 | インターバル@120BPM | 音量 | 音色 |
 |------|--------|---------------------|------|------|
 | none | — | — | — | — |
-| 8th | 2分割 | 250ms | メインの 40〜50% | メインと異なる音色（三角波 or 低周波サイン波） |
+| 8th | 2分割 | 250ms | メインの 40〜50% | メインと同じ矩形波、音量小さめ・短め（下記「音色」節参照） |
 | triplet | 3分割 | 166.7ms | メインの 40〜50% | 同上 |
 | 16th | 4分割 | 125ms | メインの 40〜50% | 同上 |
 
@@ -184,42 +192,37 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
 
 ---
 
-## 音色（Web Audio API）
+## 音色（Web Audio API）— Phase 6 で電子音（矩形波）に刷新
 
-BOSS DB-30 系の Click 音（木魚っぽい「コッカッ」）を Web Audio で合成する。サンプル音源は将来導入予定だが、現時点では合成のみ。
+> **履歴（Phase 5 まで）**: 以前はノイズ＋バンドパスフィルター＋低音オシレーターの3パス構成で BOSS DB-30 系の「コッカッ」というパーカッシブ音を合成していた（Pa/Ta フォルマント版の試作を経て DB-30 Click 版に戻した経緯あり）。Phase 6 でこの構成は廃止し、下記の矩形波オシレーター1本によるシンプルな電子音に置き換えた。
 
-> Pa/Ta フォルマント版（DB-90 Voice 風の試作）は DB-90 実機との差が大きかったため、サンプル音源導入までは DB-30 Click 版に戻して運用する。
+現行実装（`playClick(type, time, opts)`、`metronome.html`）は、単一の矩形波（`OscillatorType: 'square'`）オシレーター + 1本の Gain ノードのみで音を作る。ノイズバッファ・バンドパスフィルター・低音オシレーターは使用しない。
 
-### ノード構成（3パス並列）
+### ノード構成
 
 ```
-NoiseBuffer(50ms) → BiquadFilter(BPF) → Gain(env) ─┐
-                                                    │
-Oscillator(sine, freq=BPF中心)        → Gain(env) ─┼→ masterGain → destination
-                                                    │
-Oscillator(low, ≒freq/2, triangle/sine) → Gain(env) ┘
+Oscillator(square, freq) → Gain(env) → masterGain → destination
 ```
 
-- **ノイズ + バンドパスフィルター**でピッチを作るパーカッシブ成分（Click の主成分）
-- **サイン波（少量）**で芯を加える
-- **低音 Oscillator（追加分）** で中低域の太さを加える。既存サイン波の概ね 1 オクターブ下、三角波またはサイン波
-- 各 Gain は超高速アタック（≦2ms）→ exp 減衰でクリック感を出す
-- ノイズバッファは 50ms、`getNoiseBuffer` でキャッシュ再利用
+- `osc.type='square'` 固定。周波数は種類ごとに固定値（後述の表）
+- Gain は `setValueAtTime(.0001)` → `exponentialRampToValueAtTime(peak, +1.5ms)`（アタック）→ `setValueAtTime(peak, dur*0.8)` → `exponentialRampToValueAtTime(.0001, dur)`（減衰）のエンベロープ
+- ノイズ・BPF・低音レイヤーは存在しない（Phase 5 以前の実装からの変更点）
 
-### 音色パラメータ（実装目安）
+### 音色 高 / 低 の切替（`soundType`）
 
-| 種類 | BPF中心 | Q | ノイズPeak | サインPeak | 減衰 | 低音Freq | 低音Peak | 低音減衰 | 低音波形 | 用途 |
-|------|--------:|--:|----------:|----------:|----:|--------:|--------:|--------:|---------|------|
-| accent | 2200 Hz | 12 | 0.9 | 0.25 | 50 ms | 1100 Hz | 0.18 | 70 ms | triangle | 小節頭（1拍子の場合は全拍） |
-| normal | 1100 Hz | 12 | 0.6 | 0.18 | 40 ms | 550 Hz | 0.14 | 60 ms | triangle | 通常拍 |
-| ci | 1500 Hz | 14 | 0.7 | 0.22 | 45 ms | 750 Hz | 0.15 | 60 ms | sine | Tap Off / End Check |
-| sub | 800 Hz | 10 | 0.35 | 0.08 | 25 ms | 400 Hz | 0.06 | 40 ms | sine | Subdivision サブビート |
+- ヘッダー左上の **音 高 / 音 低** ボタン（`#sndBtn`）でクリック音全体のピッチを高音セット/低音セットに切替できる（テンポ・パフォーマンス両タブ共通のグローバル設定）
+- `localStorage` キー `metronome-sound`（値: `'high'` | `'low'`、既定 `'high'`）に保存し、次回起動時も引き継ぐ
+- 各セットの周波数・音量・長さは以下の固定値（`playClick` 内 `defaultsHigh` / `defaultsLow`）
 
-数値は試聴で調整可。`playClick(type, time, opts)` の `opts` キーで以下をオーバーライド可能:
-- 既存: `frequency` / `Q` / `noiseGain` / `toneGain` / `toneDecay` / `waveform`
-- 追加: `lowFreq` / `lowGain` / `lowDecay` / `lowWaveform`
+| 種類 | 高（freq） | 高（peak） | 高（dur） | 低（freq） | 低（peak） | 低（dur） | 用途 |
+|------|--------:|--------:|-------:|--------:|--------:|-------:|------|
+| accent | 2000 Hz | 0.18 | 35 ms | 1000 Hz | 0.20 | 45 ms | 小節頭（1拍子の場合は全拍） |
+| normal | 1000 Hz | 0.18 | 35 ms | 500 Hz | 0.20 | 45 ms | 通常拍 |
+| ci | 1500 Hz | 0.18 | 35 ms | 750 Hz | 0.20 | 45 ms | Tap Off / End Check |
+| sub | 1000 Hz | 0.08 | 20 ms | 500 Hz | 0.08 | 20 ms | Subdivision サブビート |
 
-`lowGain: 0` を指定すれば低音パスを無効化でき、従来音に戻せる（互換性確保のための安全弁）。
+- Subdivision（サブビート）はメインビートと同じ周波数・同じ矩形波だが、`peak`（音量）と `dur`（長さ）を小さくして「軽い」音にしているだけで、波形や音色そのものは変えていない
+- `opts.frequency` を渡せば個別に周波数を上書き可能（現状呼び出し側では未使用）
 
 ---
 
@@ -316,9 +319,10 @@ JSON → Base64エンコード。バージョン: **`v:5`**（`beatUnit` と `su
 - localStorage に保存済みの v:4 ライブラリは初回起動時に自動マイグレートされ、編集・保存時に v:5 形式で書き戻される
 
 **入力検証（インポート・localStorage 読込共通）**: `normalizeSection()` は外部由来（共有コード・localStorage）の値を無条件に信用しない。
-- `startMeasure` は 1〜999、`measures` は 0〜999 にクランプ（数値化できない値は既定値）。`type` は `'main'`／`'end'` 以外なら `'main'` として扱う
+- 読込時（インポート・localStorage）の `normalizeSection()` は型の検証のみ行い、上限クランプはしない: `startMeasure` は整数化し 1 未満・非数値は 1、`measures` は整数化し負・非数値は 0（`MAX_MEASURE`/`MAX_MEASURES_COUNT` の上限は適用しない）。`changeFrom` は `1〜measures` の範囲に収める。`type` は `'main'`／`'end'` 以外なら `'main'` として扱う
+- `MAX_MEASURE=9999`／`MAX_MEASURES_COUNT=999` の上限は、UI からの手入力（`change` ハンドラ・`<input max>`）と `addS`/`addE` の自動計算にのみ適用する
 - `name`・`label`・曲タイトルは常に `String()` 化した上で描画時に `escapeHtml()` を通す（`renderSL`・`renderLL`・`upSB` などの `innerHTML` 生成箇所すべて）
-- 1曲あたりのセクション数は最大 **200** に制限（`normalizeSections` で切り詰め）
+- 1曲あたりのセクション数は最大 **200**（`MAX_SECTIONS`）。ただし `normalizeSections` は既存・インポートデータを切り詰めない（読込データの消失を防ぐため）。上限は UI からのセクション追加（`addS`/`addE`）にのみ適用され、到達時は追加をブロックしトースト通知する。インポート時・起動時読込時に 200 超のデータが見つかった場合は削除・切り詰めせずトーストで警告するのみ
 
 ---
 
@@ -490,10 +494,10 @@ BPM 表示の下（`pTn` 付近）にタグ行 `#pChg` を常設し、`updateTem
 
 - HTML/CSS/JS（フレームワークなし）
 - Web Audio API（音声生成 + lookahead scheduling）
-- `localStorage`（永続化。キー: `metronome-lib`=曲ライブラリ、`metronome-volume`=マスター音量）
+- `localStorage`（永続化。キー: `metronome-lib`=曲ライブラリ、`metronome-volume`=マスター音量、`metronome-sound`=音色高/低、`metronome-theme`=テーマ、`metronome-perf-accent`=小節アクセントON/OFF）
 - Service Worker（オフラインキャッシュ）
 - Wake Lock API（画面スリープ防止、再生中のみ）
-- Google Fonts: DM Mono, Instrument Serif
+- フォント: DSEG7 Classic（`fonts/DSEG7Classic-Bold.woff2` に同梱、OFLライセンス、外部CDN不使用）。Google Fonts は Phase 7.2 で廃止し使用していない
 
 ---
 
@@ -590,22 +594,24 @@ accel/rit「⋯ 詳細」トグル追加でセクションカードが縦に伸�
 > **iOS ではホーム画面への追加は Safari のみ対応。**  
 > iOS Chrome ユーザーへは「Safari で開いて追加してください」と案内する文言を UI に添えること。
 
-### manifest.json（雛形）
+### manifest.json（現行値）
 
 ```json
 {
   "name": "Metronome Pro",
   "short_name": "Metronome",
-  "start_url": ".",
+  "start_url": "./metronome.html",
   "display": "standalone",
-  "background_color": "#0a0a0c",
-  "theme_color": "#f05e23",
+  "background_color": "#1c1d1f",
+  "theme_color": "#1c1d1f",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
 ```
+
+> `theme_color`/`background_color` は Phase 7 のテーマ導入前の値（旧オレンジ系 `#f05e23`）から `#1c1d1f` に変更済み。テーマ切替（rhythm/deck/calc）に応じて `<meta name="theme-color">` は JS で動的に上書きされるが、`manifest.json` 自体の値は固定（アイコンは旧オレンジ配色のまま — 次アクション候補として `STATUS.md` に記載）。
 
 ### 必要なアイコンファイル
 
@@ -637,7 +643,7 @@ accel/rit「⋯ 詳細」トグル追加でセクションカードが縦に伸�
 
 ```html
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#f05e23">
+<meta name="theme-color" content="#c9c5bb" id="metaTheme">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Metronome">
@@ -657,8 +663,13 @@ accel/rit「⋯ 詳細」トグル追加でセクションカードが縦に伸�
 | **Phase 3** | モバイルUI最適化（1画面レイアウト、svh、safe-area-inset、タップターゲット） | Phase 1・2 と独立 |
 | **Phase 4** | PWA 化（manifest.json、sw.js、Wake Lock、アイコン） | Phase 3 完了後が望ましい |
 | **Phase 5** | 配布フィードバック反映（音色強化・Subdivision UI 再編・拍子拡張・セクション別 subdivision・v:5マイグレーション） | Phase 1〜4 完了後 |
+| **Phase 6** | 音色を矩形波の電子音に刷新（ノイズ/BPF/低音レイヤーは廃止）・音色 高/低 切替・accel/rit の小節途中開始（`changeFrom`）・曲編集への常時テンポ変化行・パフォーマンスの rit./accel. 予告表示・テンポオフセット±1/±5 追加 | Phase 5 完了後 |
+| **Phase 7〜7.3** | 80年代機器風テーマ3種（rhythm/deck/calc）、`DESIGN.md` を一次デザイン仕様として新設、フラットデザイン化、DSEG7 7セグ表示、Google Fonts 廃止、テンポ/パフォーマンスタブの iPhone 1画面レイアウト、設定シート、練習範囲のメイン画面常時表示、パフォーマンスの小節アクセントON/OFF、ライブラリ並べ替え | Phase 6 完了後 |
+| **セキュリティ修正**（`c1992dd`） | インポート・保存データの数値検証とHTMLエスケープ漏れ修正、保存失敗時の通知、再生中の曲切替・セクション編集時の自動停止、Service Workerキャッシュ削除を `metronome-pro-` プレフィックスに限定 | Phase 7.3 完了後 |
 
-### Phase 5 の内訳（本仕様書改訂で取り込み済み）
+> **注**: Phase 6 以降は本仕様書の各節（音色・テーマ・アクセル/リタルダンド・データ構造など）に直接反映済み。以下の「Phase 5 の内訳」表は Phase 5 時点の履歴として残す（音色強化の記述は Phase 6 で置き換えられているため、現行仕様は上の「音色（Web Audio API）」節を参照）。
+
+### Phase 5 の内訳（履歴 — Phase 5 時点の記録。現行仕様と異なる箇所あり）
 
 | 項目 | 概要 |
 |------|------|
@@ -675,7 +686,7 @@ accel/rit「⋯ 詳細」トグル追加でセクションカードが縦に伸�
 
 - **サブセクション**: 親セクション内の途中開始位置を指定する機能。移動時に正しく動作しなかったため削除済み。将来再実装する場合は、親セクションの紐付けと位置移動のロジックを慎重に設計する必要がある
 - **⏮⏭（早送り/巻き戻し）ボタン**: 不要として削除
-- **ライトテーマ**: 文字の可読性が低かったため削除。テーマ切替ボタン（`themeBtn`）も廃止
+- **ライトテーマ**: 文字の可読性が低かったため Phase 6 まで削除し、`themeBtn` も廃止していた。ただし Phase 7 で方針転換し、80年代機器風の3テーマ（rhythm/deck/calc、いずれもダーク〜中間色の筐体）と `themeBtn` を復活させた（詳細は「外観 / テーマ」節）。単純な「白背景ライトテーマ」は復活していない
 - **PR/広告枠（`.aff-footer`）**: アフィリエイトや広告を運用する予定がなくなったため削除
 
 ---
