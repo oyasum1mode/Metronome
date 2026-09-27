@@ -169,6 +169,7 @@ GitHub Pages で配布する PWA 対応 Web アプリ。
 ┌──────────────────────────────────────────────────────────┐
 │ scheduler（setInterval 25ms ごとに実行）                   │
 │  └─ 現在時刻から 100ms 先までのビートを先読み              │
+│     (非表示・非フォーカス時は 1.5s 先まで。後述)             │
 │  └─ oscillator.start(beatTime) で音を予約                 │
 │  └─ サブビートも beatTime + subOffset × n で同時予約      │
 ├──────────────────────────────────────────────────────────┤
@@ -494,7 +495,7 @@ BPM 表示の下（`pTn` 付近）にタグ行 `#pChg` を常設し、`updateTem
 
 - HTML/CSS/JS（フレームワークなし）
 - Web Audio API（音声生成 + lookahead scheduling）
-- `localStorage`（永続化。キー: `metronome-lib`=曲ライブラリ、`metronome-volume`=マスター音量、`metronome-sound`=音色高/低、`metronome-theme`=テーマ、`metronome-perf-accent`=小節アクセントON/OFF）
+- `localStorage`（永続化。キー: `metronome-lib`=曲ライブラリ、`metronome-playlists`=プレイリスト、`metronome-volume`=マスター音量、`metronome-sound`=音色高/低、`metronome-theme`=テーマ、`metronome-perf-accent`=小節アクセントON/OFF）
 - Service Worker（オフラインキャッシュ）
 - Wake Lock API（画面スリープ防止、再生中のみ）
 - フォント: DSEG7 Classic（`fonts/DSEG7Classic-Bold.woff2` に同梱、OFLライセンス、外部CDN不使用）。Google Fonts は Phase 7.2 で廃止し使用していない
@@ -506,7 +507,7 @@ BPM 表示の下（`pTn` 付近）にタグ行 `#pChg` を常設し、`updateTem
 ### ターゲット環境
 
 - 縦向き（portrait）が主。**iPhone SE 相当（375×667px）で破綻しないこと**
-- 横向き（landscape）は最低限レイアウトが崩れないこと
+- 横向き（landscape）はタッチ端末では「縦向きにしてください」オーバーレイで利用不可（Phase 8.2）。PC の横長小ウィンドウでは従来どおりスクロールで利用可
 
 ### ビューポート・セーフエリア対応
 
@@ -665,6 +666,8 @@ accel/rit「⋯ 詳細」トグル追加でセクションカードが縦に伸�
 | **Phase 5** | 配布フィードバック反映（音色強化・Subdivision UI 再編・拍子拡張・セクション別 subdivision・v:5マイグレーション） | Phase 1〜4 完了後 |
 | **Phase 6** | 音色を矩形波の電子音に刷新（ノイズ/BPF/低音レイヤーは廃止）・音色 高/低 切替・accel/rit の小節途中開始（`changeFrom`）・曲編集への常時テンポ変化行・パフォーマンスの rit./accel. 予告表示・テンポオフセット±1/±5 追加 | Phase 5 完了後 |
 | **Phase 7〜7.3** | 80年代機器風テーマ3種（rhythm/deck/calc）、`DESIGN.md` を一次デザイン仕様として新設、フラットデザイン化、DSEG7 7セグ表示、Google Fonts 廃止、テンポ/パフォーマンスタブの iPhone 1画面レイアウト、設定シート、練習範囲のメイン画面常時表示、パフォーマンスの小節アクセントON/OFF、ライブラリ並べ替え | Phase 6 完了後 |
+| **Phase 8** | プレイリスト機能（複数曲の通し練習、曲間のつなぎ方（そのまま/無音→タップイン）、`metronome-playlists` の新設、v:6 共有コード） | Phase 7.3 完了後 |
+| **Phase 8.1** | プレイリスト改善（End 整理・拍子に合うタップインパターン・範囲選択の曲/位置分割・細かな不具合修正） | Phase 8 完了後 |
 | **セキュリティ修正**（`c1992dd`） | インポート・保存データの数値検証とHTMLエスケープ漏れ修正、保存失敗時の通知、再生中の曲切替・セクション編集時の自動停止、Service Workerキャッシュ削除を `metronome-pro-` プレフィックスに限定 | Phase 7.3 完了後 |
 
 > **注**: Phase 6 以降は本仕様書の各節（音色・テーマ・アクセル/リタルダンド・データ構造など）に直接反映済み。以下の「Phase 5 の内訳」表は Phase 5 時点の履歴として残す（音色強化の記述は Phase 6 で置き換えられているため、現行仕様は上の「音色（Web Audio API）」節を参照）。
@@ -679,6 +682,79 @@ accel/rit「⋯ 詳細」トグル追加でセクションカードが縦に伸�
 | 曲編集 Subdivision | セクションの「⋯ 詳細」内に subdivision セレクトを追加 |
 | 拍子拡張 | 6/8, 9/8, 12/8, 9/4 を追加。`beatUnit` フィールド新設、UI を select 化 |
 | エクスポート | `v:4 → v:5` に進める。新フィールド `tu`/`sd`、`normalizeSection` で互換補完 |
+
+---
+
+## Phase 8: プレイリスト
+
+1ショー分（複数曲）を通しで練習するための機能。曲同士のつなぎ方（そのまま続ける / 無音区間を挟んでタップインで再開）を保存し、パフォーマンスタブで通しの選曲・再生範囲を扱えるようにする。
+
+### データ
+
+- `localStorage` 新キー `metronome-playlists`:
+  ```javascript
+  {
+    id: 'pl1234567890',
+    title: 'セットリスト',
+    items: [
+      { songId: 's...', link: { mode: 'direct'|'gap', gapBeats: 4, tapBeats: 4 } },
+      ...
+    ]
+  }
+  ```
+  - `items[i].link` は「`items[i]` の曲 → 次の曲」のつなぎ方。最後の曲の `link` は使用しない
+  - `mode:'direct'` はそのまま次の曲へ進む。曲の Endセクションは常に除外する（End あり/なしの選択は廃止）
+  - `mode:'gap'` は無音区間を挟んだ後タップインで次の曲へ進む。Endセクションは鳴らさず、無音区間の1拍目に Endの音（accent 音）を1打鳴らし、残り（`gapBeats-1`拍）は無音にする
+  - `gapBeats`（1〜64、既定4）: 無音区間の拍数。1拍目の End 音を含めて数える（テンポ・拍子は前曲末尾の値を引き継ぐ）。0 は不可、最小1（= End のみで即タップイン）
+  - `tapBeats`（4/6/8/12、既定4）: タップインの拍数。「なし(0)」は選択肢から廃止（無音→タップインを選ぶ以上、タップインは必須のため）。旧データで `0` または不正値が保存されていた場合は読込時に `4` へ変換する
+  - 曲は `metronome-lib` の `id` を参照するのみ（実体はコピーしない）。曲を編集すればプレイリスト側の再生にも反映される。参照先が消えた曲は編集画面で「(削除済み)」と表示し、再生用の平坦化ではスキップする
+- 読込時（`normalizePlaylist`/`normalizePlaylistItem`）は既存の `normalizeSection` と同じ方針で型の検証のみ行い、上限クランプはしない。上限クランプ（プレイリスト内曲数 50・`gapBeats` 1〜64）は編集画面での手入力時のみ適用する（`tapBeats` は選択肢固定のセレクトのため常に有効値）
+- **旧データ変換（Phase 8.1）**: 旧形式 `link:{mode, end, gapMeasures, tapBeats}` を読み込んだ場合、`gapBeats = gapMeasures × 前曲末尾セクションの拍子`（0 なら 1）に変換する。`end` フィールドは廃止（常に除外扱い）。旧 v:6 共有コードも同じ変換ロジックで読める
+
+### タップインパターン（Phase 8.1）
+
+- 共通定義 `TAPIN_PATTERNS`（`A`=accent 音・`T`=ci 音、両方とも既存の音色・見た目を流用）:
+  - 4拍: `T T T T`
+  - 6拍: `A T T A T T`
+  - 8拍: `A T A T A A A A`
+  - 12拍: `A T T A T T A A A A A A`
+- パフォーマンス設定のカウントイン（`#ciS`）は 4/6/8/12 拍から選択（旧: 4/8）。テンポは練習範囲の開始セクション（次に演奏する曲）準拠
+- プレイリストの「無音→タップイン」もこのパターンを共用し、テンポは次の曲の冒頭に合わせる
+- ドット表示は Accent 拍（`A`）を常時ハイライトする（`renderTapinDots()`）。無音区間の1拍目（End 音）も同様に常時ハイライトする（`renderGapDots()`）
+
+### 再生（既存エンジンの再利用）
+
+- プレイリストを読み込むと、各曲の `sections` を連結した「平坦化 secs」を生成して既存の `secs`/`rF`/`rT`/`createPerformanceTransport` にそのまま渡す（`buildFlatSecs()`、`loadPlaylist()`）
+- 曲と曲の間には疑似セクションを挿入する:
+  - `type:'gap'`: 前の曲の最後のテンポ・拍子を引き継いだ1個の疑似セクション（`measures:1`、内部の拍数は `gapBeats`）。1拍目に accent 音（End 相当）を鳴らし、残りは無音でドット表示のみ進める
+  - `type:'tapin'`: 次の曲の冒頭テンポ・拍子で `tapBeats` 拍分のカウントイン（`TAPIN_PATTERNS` に従い `ci`/`accent` 音を打ち分ける）。拍数は `tapBeats` を直接 `currentBeats` として扱う（`clampBeats` の 12 拍上限を回避するため）
+  - 曲末尾の Endセクションは、直前の曲（最後の曲を除く）では常に平坦化時に除外する（`mode` に関わらず）
+- `createPerformanceTransport.scheduleNext()`/`enterMain()` に `sec.type==='gap'`（1拍目のみ accent 音、他は無音）/`'tapin'`（`TAPIN_PATTERNS` に基づく accent/ci 音）の分岐がある。単曲再生（`sec.type` が常に `'main'`/`'end'`）の挙動は変更していない
+- 練習範囲は疑似セクション（gap/tapin）を選択肢から除外し、プレイリスト読込中は「曲▼ 位置▼」×開始/終了の4セレクト（`#rFSong`/`#rFPos`/`#rTSong`/`#rTPos`）に切り替える。単曲時は従来の `#rF`/`#rT` 1行セレクトのまま。開始 > 終了になった場合は自動補正する。停止後の範囲表示ラベルにも曲番号を付ける
+
+### UI
+
+- ライブラリタブ上部に「曲｜プレイリスト」切替（`#libToggle`）。プレイリスト一覧は新規作成・エクスポート・削除・▲▼並べ替えに対応
+- プレイリスト編集画面（`#tab-pledit`）: 曲を選択して追加（上限50）、▲▼並べ替え、削除、曲間ごとの「つなぎ」設定（そのまま/無音→タップイン・無音拍数・タップイン拍数）。表示中はライブラリタブをハイライトする
+- パフォーマンスタブの `#pST` に「プレイリスト名 / 現在の曲名」を表示し、再生中に曲が切り替わるたびに更新する
+- 曲編集タブはプレイリスト読込中は編集不可（ロックメッセージ＋「単曲モードに戻る」ボタンを表示し、通常の編集UIは非表示にする）。曲を選び直すと自動的に単曲モードへ戻る
+
+### インポート/エクスポート
+
+- 新フォーマット `{v:6, kind:'playlist', title, songs:[曲（既存v5相当の形式）], items:[{i:曲index, link:{mode,gapBeats,tapBeats}}]}` を Base64 エンコードして共有する（`encPl()`）
+- インポート時は `songs` をライブラリへ新規追加し、`items` の曲参照をその新規IDへ張り替えてプレイリストを作成する（`importPlaylistPayload()`）
+- 既存の v5 単曲コード・曲タブのインポートも同じ入力欄・同じ判定ロジック（`doImport()`）でそのまま読める（`d.kind==='playlist'` でなければ単曲として扱う）。旧 `link` フィールド（`end`/`gapMeasures`）を含む v:6 コードも読込時に変換する
+
+### Phase 8.1 追加修正（BPM表示ちらつき・Tap in/out・再生ボタン）
+
+- **BPM表示ちらつきの修正**: `setPerformanceMainState`/`enterCountInState`/`enterEndCheckState` は `curS`/`curM`/`isCi`/`isEc`/`ciBt`/`ecBt` など論理状態のみを即時更新するようにした（スケジューラの lookahead 内で先行実行されるため）。表示側（`pBpm`/`pBeats`・ドット再描画・`upSB()`/`upSTB()`/`renderSL()`）は `applyPerformanceMainVisual()`/`applyCountInVisual()`/`applyEndCheckVisual()` に分離し、`queueVisual({kind:'state', time:this.nextNoteTime, ...})` で該当セクション先頭拍の音の時刻に積んでから `applyVisual()` で適用する。これにより、キューに残っていた前セクションの `kind:'tempo'` 表示更新に新しい値が上書きされて戻る、という順序逆転（ちらつき）を解消した
+  - `startTransport()` は transport 生成関数を受け取り、`stopTransport(false)`→`clearNoteQueue()` の後に生成するよう変更（`createMetroTransport`/`createPerformanceTransport` を関数参照で渡す）。これは、transport 生成時点（`enterMain`/`enterCountIn`/`enterEndCheck` の初回呼び出し）で `queueVisual` される初期表示イベントが、直後の `clearNoteQueue()` で消えてしまわないようにするため
+  - 停止時（`pStop`/`stopTransport`）はキューを破棄するため影響しない
+- **Tap in/out は再生範囲に対して適用**: カウントイン（`ciOn`）・エンドチェック（`ecOn`）は練習範囲（`rF`〜`rT`）の最初の前・最後の後にのみ発生し、プレイリストの曲境界（`gap`/`tapin` 疑似セクション）では発生しない（従来通り。曲境界のタップインは `link.mode:'gap'` の疑似セクションが担う、既存仕様）
+  - **End とエンドチェックの二重打ち防止**: End は次の小節の1拍目を表すため、再生範囲の終わり（`rT`）が End セクションそのもの、または End セクション直前の場合、End 単独の打鍵とエンドチェック1拍目が重複しないよう、End の打鍵を省いてエンドチェックの1拍目をその代わりとする。この「省略して合流」は `secs[rT].type==='end'` のときのみ発生し、`rT` が通常の演奏セクションの場合は最後まで通常どおり再生してからエンドチェックへ移行する（`createPerformanceTransport().advance()`/初期分岐で `secs[rF]`/`secs[rT]` の型を判定するよう修正。単曲・プレイリスト両方に適用される共通ロジック）
+- **プレイリスト一覧の再生ボタン**: 「読込▶」ボタン（`.lib.plPlay`）を 44×44px に拡大し、START ボタンと同じテーマ変数（`--start-bg`/`--start-tx`）で着色した（詳細は `DESIGN.md` の「ライブラリ: プレイリスト再生ボタン」節）
+- **縦向き専用化**: `manifest.json` に `"orientation":"portrait"` を追加。orientation lock が効かない環境向けに、横向き検出時（`@media (orientation:landscape) and (max-height:500px) and (pointer:coarse)`＝タッチ端末のみ）は画面全体を覆う「縦向きにしてください」オーバーレイ（`.rotateOverlay`）を表示する（詳細は `DESIGN.md` の「画面向き」節）
+- `sw.js` キャッシュ名を `metronome-pro-v20` に更新
 
 ---
 
@@ -708,3 +784,22 @@ METRONOME_SPEC.md に仕様が書いてあります。
 このファイルを編集して以下の改善をしてください：
 （具体的な修正・追加内容を記載）
 ```
+
+### バックグラウンド時の先読み延長（Phase 8.2）
+
+- Safari 等はタブ非表示・ウィンドウ非フォーカス時に `setInterval` を間引くため、先読み 100ms では予約が途切れて拍が乱れる
+- `scheduleAhead()`: `document.hidden || !document.hasFocus()` のときは `SCHEDULE_AHEAD_BG`(1.5s)、それ以外は `SCHEDULE_AHEAD_TIME`(0.1s)
+- `window` の `blur` と `visibilitychange`(hidden) で即座に `runScheduler()` を呼び、背景へ移る直前に先読み分を予約する
+- 副作用: 背景中のテンポ変更は最大 1.5s 遅れて反映。停止時は `muteMasterGain` で予約済み音も消音される
+
+### Codex レビュー指摘の修正（Phase 8.2 追加）
+
+- **ID生成の共通化・重複防止**: 曲・プレイリストの ID は `genId(prefix)` に統一。`crypto.randomUUID()` があれば使用し、無ければ `Date.now().toString(36)` ＋乱数2個を連結したものにフォールバックする。生成のたびに既存 `lib`/`playlists` の `id` と重複していないか確認し、重複する場合は再生成する（`normalizePlaylist`・`importSongPayload`・`importPlaylistPayload`・新規曲/新規プレイリスト作成・無題曲の保存、すべてこの関数を使用）
+- **停止直後の再開で旧予約音が鳴る問題の修正**: `playClick()` で生成した `OscillatorNode` を `pendingOscillators`（Set）に保持し、`onended` で自動的に除去する。`stopTransport()` は `muteMasterGain()` に加えて `stopAllPendingOscillators()` を呼び、Set 内の全 osc を `stop(0)`/`disconnect()` する。これによりテンポタブ・パフォーマンスタブ双方、subdivision の音も含めて、停止直後に旧予約分が鳴ることがなくなる
+- **表示と音の同期の徹底**: 論理状態（transport 内部の `this.sectionIndex`/`this.measureIndex`/`this.ciIndex`/`this.ecIndex` 等）と表示状態（`curS`/`curM`/`isCi`/`isEc`/`ciBt`/`ecBt`）を完全に分離した。表示状態は音の再生時刻に同期して `queueVisual`→`applyVisual` 経由でのみ更新し、スケジュール時点（先読み中）には一切書き換えない
+  - `applyPerformanceMainVisual(sectionIndex, measureIndex)` / `applyCountInVisual(tempo)` / `applyEndCheckVisual(tempo)` が表示状態の設定を担う（旧 `setPerformanceMainState`/`enterCountInState`/`enterEndCheckState` は廃止・統合）
+  - 小節進行・カウントイン/エンドチェックの拍数進行も、`scheduleNext()` が発行する per-beat の `queueVisual` イベントに `sectionIndex`/`measureIndex`/`ciBt`/`ecBt` を積み、`applyBeatProgressVisual(evt)` が音の時刻でこれらを反映してから `upSB()` を呼ぶ。`advance()` 側の即時 `curM=...`/`upSB()` 呼び出しは削除した
+- **プレイリスト・単曲切替時の停止漏れ修正**: `exitPlaylistMode()` と、ライブラリからの曲削除（読込中の曲を削除するケース）で、`secs` を差し替える前に再生中なら `pStop()` を呼ぶよう修正。`loadSong`/`loadPlaylist`/クリアボタンは元々対応済みだったことを確認した
+- **プレイリスト編集の名前消失修正**: `#plT` の `input` イベントで編集中データ（`playlists` 内の該当エントリ）の `title` に即時反映するようにした。保存は従来どおり保存ボタン（`#plSave`）。曲追加・並べ替え・つなぎ変更で `renderPlEdit()` が再描画されても、入力中のタイトルが失われない
+- **不正な共有コードの取り込み耐性強化**: `isValidPlaylistImportPayload(d)` を新設し、`songs` が配列で各要素がオブジェクト（`sections` が配列）であること、`items` が配列で各要素がオブジェクト（`i` が `songs` の範囲内の整数、`link` がオブジェクト）であることを、`lib`/`playlists` に反映する前にすべて検証する。一つでも不正なら何も変更せず `toast('無効なコード')` を表示する。単曲 v5 の取り込みも `d.sections` が配列であることを明示的に確認するよう修正した
+- `sw.js` キャッシュ名を `metronome-pro-v21` に更新

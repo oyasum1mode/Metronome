@@ -3,6 +3,7 @@
   "short_name": "Metronome",
   "start_url": "./metronome.html",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#1c1d1f",
   "theme_color": "#1c1d1f",
   "icons": [
