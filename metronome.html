@@ -914,7 +914,7 @@ function normalizePlaylistItem(it){
     songId,
     link:{
       mode,
-      gapBeats:Math.max(1,gapBeats),
+      gapBeats:Math.max(0,gapBeats),
       tapBeats
     }
   };
@@ -928,7 +928,7 @@ function normalizePlaylist(p){
   };
 }
 function normalizePlaylists(list){return(Array.isArray(list)?list:[]).map(normalizePlaylist)}
-function clampGapBeats(v){return clampInt(v,1,64,4)}
+function clampGapBeats(v){return clampInt(v,0,64,4)}
 function clampTapBeats(v){const n=parseInt(v,10);return TAPIN_PATTERNS[n]?n:4}
 function progress(sec,beatIndex,measureIndex){
   if(!sec||sec.measures<=0)return 0;
@@ -1843,8 +1843,9 @@ function buildFlatSecs(pl){
       if(hasEnd)arr=arr.slice(0,-1);
       if(link.mode==='gap'){
         const lastReal=arr[arr.length-1]||{tempo:120,timeSig:4,beatUnit:4};
-        const gb=Math.max(1,link.gapBeats||1);
-        arr.push({type:'gap',label:'',name:'間奏',startMeasure:1,measures:1,tempo:(lastReal.tempoEnd??lastReal.tempo),tempoEnd:(lastReal.tempoEnd??lastReal.tempo),tempoCurve:0,changeFrom:1,timeSig:lastReal.timeSig,beatUnit:lastReal.beatUnit,subdivision:'none',gapBeats:gb});
+        // 無音0拍なら間奏(End含む)を挟まず、すぐ Tap in に入る
+        const gb=Math.max(0,Number.isFinite(link.gapBeats)?link.gapBeats:1);
+        if(gb>0)arr.push({type:'gap',label:'',name:'間奏',startMeasure:1,measures:1,tempo:(lastReal.tempoEnd??lastReal.tempo),tempoEnd:(lastReal.tempoEnd??lastReal.tempo),tempoCurve:0,changeFrom:1,timeSig:lastReal.timeSig,beatUnit:lastReal.beatUnit,subdivision:'none',gapBeats:gb});
         const nextSecs=normalizeSections(valid[i+1].song.sections);
         const nextFirst=nextSecs.find(s=>s.type!=='end')||nextSecs[0];
         const tb=Math.max(0,link.tapBeats||0);
@@ -2096,7 +2097,7 @@ function renderPlEdit(){
       const gapHidden=it.link.mode!=='gap';
       const tapOpts=[4,6,8,12].map(v=>`<option value="${v}"${it.link.tapBeats===v?' selected':''}>${v}拍</option>`).join('');
       linkHtml=`<div class="sfs f1"><div class="fg"><label>つなぎ</label><select data-i="${i}" data-f="mode"><option value="direct"${it.link.mode==='direct'?' selected':''}>そのまま</option><option value="gap"${it.link.mode==='gap'?' selected':''}>無音→タップイン</option></select></div></div>
-        <div class="sfs f2"${gapHidden?' style="display:none"':''}><div class="fg"><label>無音(拍)</label><input type="number" min="1" max="64" value="${it.link.gapBeats}" data-i="${i}" data-f="gapBeats"></div><div class="fg"><label>タップイン</label><select data-i="${i}" data-f="tapBeats">${tapOpts}</select></div></div>`;
+        <div class="sfs f2"${gapHidden?' style="display:none"':''}><div class="fg"><label>無音(拍)</label><input type="number" min="0" max="64" value="${it.link.gapBeats}" data-i="${i}" data-f="gapBeats"></div><div class="fg"><label>タップイン</label><select data-i="${i}" data-f="tapBeats">${tapOpts}</select></div></div>`;
     }
     const editBtn=song?`<button class="mvb" data-editsong="${it.songId}" title="曲を編集">✎</button>`:'';
     c.innerHTML=`<div class="sch"><div class="smv"><button class="mvb${upDis}" data-d="up" data-i="${i}">▲</button><button class="mvb${dnDis}" data-d="dn" data-i="${i}">▼</button></div><span class="lct" style="flex:1">${i+1}. ${escapeHtml(titleTxt)}</span>${editBtn}<button class="sdel" data-i="${i}">×</button></div>${linkHtml}`;

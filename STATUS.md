@@ -2,9 +2,10 @@
 
 ## 現在地
 
-- 公開中: https://oyasum1mode.github.io/Metronome/ — Phase 9 まで公開済み(`b1e36d5`、2026-09-27)
-- sw.js キャッシュ名: `metronome-pro-v23`
-- 作業中の変更なし。次の作業は下の「次アクション候補」から選ぶ
+- 公開中: https://oyasum1mode.github.io/Metronome/ — Phase 9.1 まで公開済み(2026-09-27)
+- sw.js キャッシュ名: `metronome-pro-v24`
+- 作業中の変更なし
+- 直近: Phase 9.1 プレイリストのつなぎで無音0拍を許可(無音・End なしで即 Tap in)。Chrome と Codex(無音0/1/4/64 × Tap in 4/6/8/12 の16通り)で確認済み
 
 ## これまでの到達点
 
