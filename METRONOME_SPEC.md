@@ -803,3 +803,66 @@ METRONOME_SPEC.md に仕様が書いてあります。
 - **プレイリスト編集の名前消失修正**: `#plT` の `input` イベントで編集中データ（`playlists` 内の該当エントリ）の `title` に即時反映するようにした。保存は従来どおり保存ボタン（`#plSave`）。曲追加・並べ替え・つなぎ変更で `renderPlEdit()` が再描画されても、入力中のタイトルが失われない
 - **不正な共有コードの取り込み耐性強化**: `isValidPlaylistImportPayload(d)` を新設し、`songs` が配列で各要素がオブジェクト（`sections` が配列）であること、`items` が配列で各要素がオブジェクト（`i` が `songs` の範囲内の整数、`link` がオブジェクト）であることを、`lib`/`playlists` に反映する前にすべて検証する。一つでも不正なら何も変更せず `toast('無効なコード')` を表示する。単曲 v5 の取り込みも `d.sections` が配列であることを明示的に確認するよう修正した
 - `sw.js` キャッシュ名を `metronome-pro-v21` に更新
+
+### Phase 9: ナビゲーション改善
+
+プレイリスト導入後、「ライブラリで選ぶ → 曲編集 → 単曲モードに戻る → ライブラリで選び直す」の往復を減らし、現在地を常に見えるようにした。
+
+#### 1. 現在地バー（パフォーマンス・曲編集タブ共通）
+
+- パフォーマンスタブ: 既存の `#pST`（高さ・位置は据え置き。1画面レイアウトを崩さない）
+  - プレイリスト読込中: `▶ プレイリスト名  現在の曲番号/曲数 › 曲名 ▾`（`upSTB()`）
+  - 単曲: `♪ 曲名 ▾`、未選択: `曲を選ぶ ▾`
+- 曲編集タブ: 新設の `#sST`（`renderSongBar()`）
+  - プレイリスト読込中: `✎ プレイリスト名 ▾` に加え、編集対象曲を選ぶ `<select id="editSongSel">`（プレイリスト内の曲一覧、曲順表示）
+  - 単曲: `♪ 曲名 ▾`、未選択: `曲を選ぶ ▾`
+- どちらのバーも `<span class="sst-tap">` をタップすると **選曲シート**（`#selSheet`、既存の設定シート `.mo`/`.md` の様式を流用）を開く（`openSelSheet()`/`renderSelSheet()`）
+  - シート上部に「プレイリスト｜曲」切替（`#selToggle`）、一覧をタップで即読込（`loadPlaylist()`/`loadSong()`）。現在読込中のものは `.cur` でハイライト
+  - 曲編集タブから開いた場合は曲を選ぶと曲編集タブへ戻り（`selSheetOrigin`）、プレイリストを選ぶとパフォーマンスタブへ（`loadPlaylist()` の既存挙動）
+  - 再生中に切替えたら既存どおり `pStop()` してから読込む（`loadSong`/`loadPlaylist` に既存実装）
+
+#### 2. 曲編集をプレイリスト読込中のまま可能に
+
+- 「プレイリスト再生中は曲編集できません」のロックメッセージ（`#songLockMsg`）と「単曲モードに戻る」ボタン（`#songUnlockBtn`）を廃止。`#songEditWrap` は常時表示
+- **編集バッファと平坦化 secs の分離**: プレイリスト読込中の曲編集は、パフォーマンス用の平坦化配列 `secs`（`buildFlatSecs()` の出力。曲間の `gap`/`tapin` 疑似セクションを含む）を直接編集しない。代わりに専用の編集バッファ `editSecs`（対象曲の `lib` セクションを複製したもの）と、対象曲IDを保持する `editSongId` を新設した
+  - `esecs()`: 曲編集UI（`renderSL()`・セクション追加/削除/並べ替え/各フィールド編集・`assignLabels()`）が参照する配列を返す。プレイリスト読込中は `editSecs`、単曲モードでは従来どおり `secs`（単曲モードは元々 編集とパフォーマンスが同じ配列を共有しているため変更なし）
+  - `selectEditSong(songId)`: `lib` から該当曲を複製して `editSecs`/`editSongId`/`sTitle` にセットし、曲編集タブを再描画する。再生中なら先に `pStop()`
+  - `saveCur()`: プレイリスト読込中は `editSongId` の曲を `lib` に保存してから `rebuildFlatSecsPreservingRange()` を呼ぶ。単曲モードは従来どおり `curSId` の曲を保存
+  - `rebuildFlatSecsPreservingRange()`: `buildFlatSecs()` で `secs` を作り直し、範囲 `rF`/`rT` を **曲番号(`_pn`)＋曲内位置(`_localIdx`)** で再マッピングする（`remapPlaylistPosition()`）。同じ曲・同じ位置が無くなっていれば同じ曲内で最も近い位置へ、その曲自体が無ければ（削除等）そのままインデックスの妥当性を保証できないため全体（`0`〜`length-1`）にフォールバックする。再生中は先に `pStop()`
+  - `buildFlatSecs()` は各曲のセクションに `_localIdx`（曲内での並び順。`gap`/`tapin` 疑似セクションには付与しない）を付与するよう拡張した
+- 曲編集タブを開いたとき、プレイリスト読込中かつ編集対象未選択（または対象曲が削除済み）なら、パフォーマンスで表示中の曲（`secs[curS]`/`secs[rF]` の `_pn`）に対応する曲を既定の編集対象にする（`switchTab('song')`）
+- 保存ボタン（`#svL`）・エクスポート（`#exB`）・クリア（`#clB`）もプレイリスト読込中は `editSongId`/`editSecs` を対象に動作するよう分岐した。クリアはパフォーマンスの `secs` には触れない
+- ライブラリタブでの曲削除時、削除対象が `editSongId` なら編集バッファを解除し、プレイリスト読込中なら `buildFlatSecs()` で `secs` を作り直す
+
+#### 3. プレイリスト編集から曲編集へ
+
+- プレイリスト編集（`renderPlEdit()`）の各曲行に「✎」ボタンを追加（`data-editsong`）。押すと `openSongEditFromPlaylist(songId)` が実行され、
+  1. 対象プレイリストが読込中でなければ `loadPlaylist()` で読み込む
+  2. `plEditReturnId` にプレイリストIDを保持
+  3. `selectEditSong(songId)` で該当曲を編集対象にする
+  4. `switchTab('song')` で曲編集タブを開く
+- `plEditReturnId` が現在のプレイリストと一致する間、曲編集タブの現在地バーに「← プレイリスト編集」ボタンが表示され、押すと `openPlEdit()` でプレイリスト編集へ戻る
+- 曲編集タブ以外へ切り替える、または `loadSong`/`loadPlaylist`（別プレイリスト）を呼ぶと `plEditReturnId` はクリアされる
+
+#### 4. パフォーマンスの表示・変更点
+
+- `renderSL()` は表示中のタブが曲編集タブでないときは描画をスキップする（`if(!$('tab-song').classList.contains('active'))return;`）。プレイリスト再生中に毎セクション `applyPerformanceMainVisual()` から呼ばれても、曲編集タブを開いていなければ無駄な再描画をしない。曲編集タブを開いたとき（`switchTab('song')`）に改めて描画される
+- `renderSL()` の再生中ハイライト（`.playing`）は単曲モードのみ付与する（プレイリスト読込中は `esecs()`＝`editSecs` のインデックスとパフォーマンスの `curS` は無関係のため）
+
+### Codex レビュー指摘の修正（Phase 9 追加）
+
+- **[P1] プレイリスト再読込時の編集対象消失を修正**: `loadPlaylist()` で、別プレイリストへの切替や単曲モードからの読込では従来どおり `editSongId`/`editSecs`/`plEditReturnId`/`sTitle`（`#sT`）を揃えて初期化する。**同一プレイリストの再読込**（選曲シート等から同じプレイリストを選び直した場合）では、`editSongId` がそのプレイリストにまだ含まれているかを確認し、含まれていれば `sTitle`/`#sT` を該当曲のタイトルで復元、含まれていなければ三者を揃えて初期化する。これにより、曲編集中に同じプレイリストを読み直しても曲名が空のまま `saveCur()` されることがなくなった
+- **[P2] 曲編集タブの既定編集対象を songId で特定するよう修正**: `buildFlatSecs()` が生成する各セクションに `_songId`（曲のライブラリID）を付与するよう拡張。`switchTab('song')` の既定編集対象決定ロジックを、`secs[curS]._pn`/`secs[rF]._pn` で `pl.items[pn-1]` を直接引く実装（削除済み曲混在時に `_pn` が詰め番号のためズレる）から、`secs[curS]._songId`/`secs[rF]._songId` を直接使う実装に変更した
+- **[P2] 範囲の再マッピングが gap/tapin を選んでしまう問題を修正**: `remapPlaylistPosition()` の候補列挙で `type==='gap'`/`'tapin'` のセクションを除外するようにした。加えて、対象曲を再マッピングした結果 `null`（＝その曲に演奏セクションが無い。曲クリア直後など）の場合は、`rebuildFlatSecsPreservingRange()` が新設の `firstPlayableSecIdx()`/`lastPlayableSecIdx()`（gap/tapin を飛ばして最初/最後の演奏セクションを返す）へフォールバックする。`if(rT<rF)rT=rF` の安全策は維持し、`rF>rT` にならないことを確認した
+- **使いやすさ改善**: パフォーマンスの現在地バー（`#pST`）は行全体をタップ可能にした（`bar.onclick=openSelSheet`、再描画のたびにリスナーが積み重ならないよう `addEventListener` ではなく `onclick` 代入に統一）。曲編集の現在地バー（`#sST`）も同様に行全体へ `onclick` を設定しつつ、曲セレクト（`#editSongSel`）と「← プレイリスト編集」ボタン（`#sBackToPl`）のクリックは `stopPropagation()` して選曲シートが誤って開かないようにした
+- **[プレイリスト読込中の曲クリア] ボタン名・確認文・取り消しトースト**: プレイリスト読込中に曲編集タブを開いているときのみ、クリアボタンの表示名を「✕ 曲の内容をクリア」に変更（`updateClearBtnLabel()`、`renderSongBar()`/`updateAll()` から呼び出し）。確認ダイアログを「「{曲名}」の内容を空にします。ライブラリの元の曲が変更され、この曲を使うすべてのプレイリストに反映されます。続けますか？」に変更（曲名は `confirm()`/`textContent` にのみ使用しHTMLへは挿入しないため escapeHtml 不要）。タイトル（`sTitle`/`#sT`）はクリア対象に含めず、セクションのみを空にする。クリア直後に専用の取り消しトースト（`#toastU`、`showUndoToast()`）を5秒間表示し、「元に戻す」を押すとクリア前の `sections` をライブラリへ書き戻し、`editSecs`/平坦化 `secs`/範囲/編集表示を復元する。既存の `toast()`（`#toast`）とは別要素・別タイマーで管理し干渉しない
+- `sw.js` キャッシュ名を `metronome-pro-v23` に更新
+
+#### 変更ファイル
+
+`metronome.html`、`sw.js`（`metronome-pro-v23`）、`DESIGN.md`、`USER_GUIDE.md`、`STATUS.md`
+
+### 取り消し(元に戻す)の追加修正(Phase 9 再レビュー)
+
+- クリア後に同じ曲を単曲で読み込んでいた場合、「元に戻す」はライブラリに加えて単曲の編集・再生データ(`secs`)も復元する(復元後の保存で再び空になる不具合の修正)
+- プレイリスト読込中の「元に戻す」は、クリア後に練習範囲・プレイリストが変更されていなければクリア前の練習範囲も復元する。変更されていればユーザーの選択を優先する。判定は値の一致ではなく、範囲・曲・プレイリストの選択操作ごとに増える変更カウンター `rangeSelSeq` で行う(同じ範囲を選び直した場合もユーザーの選択として扱う)

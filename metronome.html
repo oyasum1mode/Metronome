@@ -110,6 +110,12 @@ body{background:var(--bd);color:var(--tx);font-family:-apple-system,"Helvetica N
 .trend{display:inline-block;margin-left:5px;color:var(--ac);font-family:inherit;font-size:12px;font-style:normal}
 .stb{text-align:center;margin-bottom:4px;min-height:14px}
 .stb span{font-size:13px;color:var(--dm);font-style:normal}
+#pST{cursor:pointer;padding:4px}
+#sST{cursor:pointer}
+#sST .sst-tap{display:inline-block;padding:4px}
+.sst-tap{cursor:pointer}
+#sST{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;text-align:center}
+#sST select{max-width:150px}
 .sb{text-align:center;margin-bottom:8px;min-height:20px}
 .tg{display:inline-block;padding:2px 10px;border-radius:10px;font-size:10px;letter-spacing:.06em}
 .tg-n{background:var(--as);border:1px solid rgba(255,59,48,.3);color:var(--ac)}
@@ -265,6 +271,9 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .mb:hover{border-color:var(--dm);color:var(--tx)}.mb.pri{border-color:var(--ac);color:var(--ac);background:#1a1a1c}
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--ac);color:var(--bg);padding:6px 16px;border-radius:16px;font-size:10px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
 .toast.show{opacity:1}
+.toastu{bottom:56px;pointer-events:none;display:flex;align-items:center;gap:10px}
+.toastu.show{pointer-events:auto}
+.toastu button{background:transparent;border:none;color:var(--bg);font-size:10px;font-weight:700;text-decoration:underline;cursor:pointer;padding:2px}
 .bt-note{font-size:9px;color:var(--mt);text-align:center;margin-top:14px;padding:0 8px;line-height:1.5}
 #tab-song.active,#tab-lib.active,#tab-pledit.active{display:block;overflow:auto;padding-bottom:8px}
 @media (max-height:700px){
@@ -419,7 +428,7 @@ html[data-theme="calc"] .dot.acc.on::before{color:var(--bac)}
   </div>
 
   <div class="tc" id="tab-song">
-    <div class="le" id="songLockMsg" style="display:none">プレイリスト再生中は曲編集できません<br><button class="mb pri" id="songUnlockBtn" style="margin-top:8px">単曲モードに戻る</button></div>
+    <div class="stb" id="sST"></div>
     <div id="songEditWrap">
     <div class="sh"><input class="sti" id="sT" type="text" placeholder="曲名を入力…"></div>
     <div class="sa">
@@ -492,7 +501,14 @@ html[data-theme="calc"] .dot.acc.on::before{color:var(--bac)}
 </div></div>
 <div class="mo" id="exM"><div class="md"><h3>エクスポート</h3><div class="mdt">コードをコピーして共有</div><textarea id="exA" readonly></textarea><div class="mdb"><button class="mb" id="exCl">閉じる</button><button class="mb pri" id="exCp">コピー</button></div></div></div>
 <div class="mo" id="imM"><div class="md"><h3>インポート</h3><div class="mdt">コードを貼り付け</div><textarea id="imA" placeholder="ここに貼り付け…"></textarea><div class="mdb"><button class="mb" id="imCl">閉じる</button><button class="mb pri" id="imLd">読み込み</button></div></div></div>
+<div class="mo" id="selSheet"><div class="md"><h3>選ぶ</h3>
+  <div class="subgrp" id="selToggle" role="radiogroup" style="margin-bottom:8px"><button class="subbtn active" type="button" data-v="playlist">プレイリスト</button><button class="subbtn" type="button" data-v="song">曲</button></div>
+  <div class="ll" id="selPlList"></div>
+  <div class="ll" id="selSongList" style="display:none"></div>
+  <div class="mdb"><button class="mb pri" id="selCl">閉じる</button></div>
+</div></div>
 <div class="toast" id="toast"></div>
+<div class="toast toastu" id="toastU"><span id="toastUMsg"></span><button type="button" id="toastUBtn">元に戻す</button></div>
 
 <script>
 const $=id=>document.getElementById(id);
@@ -776,10 +792,13 @@ function secLabel(n){
   return String.fromCharCode(65+Math.floor(n/26)-1)+String.fromCharCode(65+(n%26));
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function assignLabels(){
+function assignLabels(arr){
   let mi=0;
-  secs.forEach(s=>{if(s.type==='end')s.label='End';else{s.label=secLabel(mi);mi++}});
+  (arr||secs).forEach(s=>{if(s.type==='end')s.label='End';else{s.label=secLabel(mi);mi++}});
 }
+// Phase 9: 曲編集UIが対象とする配列。プレイリスト読込中は editSecs(lib由来の編集バッファ)、
+// 単曲モードでは従来どおり secs(パフォーマンスと共用)を返す。
+function esecs(){return curPlaylistId?editSecs:secs}
 function tN(b){if(b<40)return'Grave';if(b<55)return'Largo';if(b<66)return'Larghetto';if(b<76)return'Adagio';if(b<92)return'Andante';if(b<108)return'Moderato';if(b<120)return'Allegretto';if(b<156)return'Allegro';if(b<176)return'Vivace';if(b<200)return'Presto';return'Prestissimo'}
 function clampTempo(v){const n=parseFloat(v);return Math.max(20,Math.min(400,Number.isFinite(n)?n:120))}
 function clampBeats(v){const n=parseInt(v,10);return Math.max(1,Math.min(12,Number.isFinite(n)?n:4))}
@@ -1046,6 +1065,12 @@ let sTitle='',secs=[],curS=-1,curM=0;
 let rF=0,rT=0;
 let lib=[],curSId=null;
 let playlists=[],curPlaylistId=null,curPlEditId=null,libView='song';
+// Phase 9: プレイリスト読込中の曲編集用バッファ(パフォーマンスの平坦化 secs とは分離)
+let editSongId=null,editSecs=[];
+// Phase 9: プレイリスト編集の✎から来た場合の戻り先プレイリストID
+let plEditReturnId=null;
+// Phase 9: 選曲シートを開いたタブ('perf'|'song')。選択後にそのタブへ戻る
+let selSheetOrigin='perf';
 let lastTmp=120,lastBts=4;
 let tempoOffset=0;
 let pAccent=true;
@@ -1134,15 +1159,81 @@ function pUpdSubdivision(){
 function pSetPlay(){$('pPb').classList.add('on');$('pPi').innerHTML='<rect class="bar" x="6" y="5" width="4" height="14" rx="1"/><rect class="bar" x="14" y="5" width="4" height="14" rx="1"/>'}
 function pSetStop(){$('pPb').classList.remove('on');$('pPi').innerHTML='<polygon class="tri" points="8,5 20,12 8,19"/>'}
 function upSTB(){
+  const bar=$('pST');
   if(curPlaylistId){
     const pl=playlists.find(p=>p.id===curPlaylistId);
     const plTitle=pl?(pl.title||'無題プレイリスト'):'';
-    const cur=secs[curS]||secs[0];
+    const cur=secs[curS]||secs[rF]||secs[0];
     const songTitle=cur&&cur._pTitle?cur._pTitle:'';
-    $('pST').innerHTML=`<span>${escapeHtml(plTitle)} / ${escapeHtml(songTitle)}</span>`;
-    return;
+    const pn=(cur&&cur._pn)||1;
+    const count=pl?(pl.items||[]).length:0;
+    bar.innerHTML=`<span class="sst-tap" id="pSTTap">▶ ${escapeHtml(plTitle)}  ${pn}/${count} › ${escapeHtml(songTitle)} ▾</span>`;
+  }else{
+    bar.innerHTML=`<span class="sst-tap" id="pSTTap">${sTitle?('♪ '+escapeHtml(sTitle)):'曲を選ぶ'} ▾</span>`;
   }
-  $('pST').innerHTML=sTitle?`<span>${escapeHtml(sTitle)}</span>`:'';
+  // Phase 9 Codex指摘#4: パフォーマンスの現在地バーは行全体をタップ可能にする(#pSTには他の操作要素が無いため単純に行全体へ)
+  // bar自体は再生成されない持続要素なのでonclickで上書きし、リスナーが積み重ならないようにする
+  bar.onclick=openSelSheet;
+}
+// Phase 9: 曲編集タブの現在地バー(プレイリスト読込中は編集対象曲のセレクトを含む)
+function renderSongBar(){
+  const bar=$('sST');
+  if(curPlaylistId){
+    const pl=playlists.find(p=>p.id===curPlaylistId);
+    const plTitle=pl?(pl.title||'無題プレイリスト'):'';
+    const backBtn=(plEditReturnId&&plEditReturnId===curPlaylistId)?`<button class="mb" id="sBackToPl" type="button">← プレイリスト編集</button>`:'';
+    const opts=(pl?pl.items:[]).map((it,idx)=>{
+      const s=lib.find(x=>x.id===it.songId);
+      const t=s?(s.title||'無題'):'(削除済み)';
+      return `<option value="${it.songId}"${it.songId===editSongId?' selected':''}>${idx+1}. ${escapeHtml(t)}</option>`;
+    }).join('');
+    bar.innerHTML=`${backBtn}<span class="sst-tap" id="sSTTap">✎ ${escapeHtml(plTitle)} ▾</span><select class="rs" id="editSongSel">${opts}</select>`;
+    const sel=$('editSongSel');
+    if(sel){sel.addEventListener('click',e=>e.stopPropagation());sel.addEventListener('change',e=>selectEditSong(e.target.value))}
+    const back=$('sBackToPl');
+    if(back)back.addEventListener('click',e=>{e.stopPropagation();const id=plEditReturnId;plEditReturnId=null;openPlEdit(id)});
+  }else{
+    bar.innerHTML=`<span class="sst-tap" id="sSTTap">${sTitle?('♪ '+escapeHtml(sTitle)):'曲を選ぶ'} ▾</span>`;
+  }
+  // Phase 9 Codex指摘#4: 曲編集の現在地バーは曲セレクト/戻るボタンを除き行全体をタップ可能にする(それらは上でstopPropagation済み)
+  bar.onclick=openSelSheet;
+  updateClearBtnLabel();
+}
+// Phase 9: 選曲シート(プレイリスト/曲を一覧からタップで即読込)
+let selView='playlist';
+function openSelSheet(){
+  selSheetOrigin=document.getElementById('tab-song').classList.contains('active')?'song':'perf';
+  selView=curPlaylistId?'playlist':'song';
+  renderSelSheet();
+  $('selSheet').classList.add('show');
+}
+function renderSelSheet(){
+  $('selToggle').querySelectorAll('.subbtn').forEach(b=>b.classList.toggle('active',b.dataset.v===selView));
+  $('selPlList').style.display=selView==='playlist'?'':'none';
+  $('selSongList').style.display=selView==='song'?'':'none';
+  if(selView==='playlist'){
+    const l=$('selPlList');
+    l.innerHTML='';
+    if(playlists.length===0){l.innerHTML='<div class="le">プレイリストがありません</div>';return}
+    playlists.forEach(p=>{
+      const c=document.createElement('div');
+      c.className='lc'+(p.id===curPlaylistId?' cur':'');
+      c.innerHTML=`<div class="lci"><div class="lct">${escapeHtml(p.title||'無題プレイリスト')}</div><div class="lcm">${(p.items||[]).length} 曲</div></div>`;
+      c.addEventListener('click',()=>{$('selSheet').classList.remove('show');loadPlaylist(p)});
+      l.appendChild(c);
+    });
+  }else{
+    const l=$('selSongList');
+    l.innerHTML='';
+    if(lib.length===0){l.innerHTML='<div class="le">曲がありません</div>';return}
+    lib.forEach(s=>{
+      const c=document.createElement('div');
+      c.className='lc'+(!curPlaylistId&&s.id===curSId?' cur':'');
+      c.innerHTML=`<div class="lci"><div class="lct">${escapeHtml(s.title||'無題')}</div></div>`;
+      c.addEventListener('click',()=>{$('selSheet').classList.remove('show');loadSong(s);switchTab(selSheetOrigin);});
+      l.appendChild(c);
+    });
+  }
 }
 function upSB(){
   const sb=$('pSB');
@@ -1193,7 +1284,10 @@ function upRangePl(){
   fillPosSel(fPosSel,curFGroup,rF);
   fillPosSel(tPosSel,curTGroup,rT);
 }
+// ユーザーによる範囲・曲/プレイリスト選択の変更回数(「元に戻す」で選び直しを優先するための判定用)
+let rangeSelSeq=0;
 function setRangeF(v){
+  rangeSelSeq++;
   rF=v;
   if(rT<rF)rT=rF;
   $('rF').value=rF;$('rT').value=rT;
@@ -1201,6 +1295,7 @@ function setRangeF(v){
   upSB();
 }
 function setRangeT(v){
+  rangeSelSeq++;
   rT=v;
   if(rF>rT)rF=rT;
   $('rF').value=rF;$('rT').value=rT;
@@ -1228,7 +1323,7 @@ function upRange(){
   $('rRPl').style.display=curPlaylistId?'':'none';
   if(curPlaylistId)upRangePl();
 }
-function updateAll(){pUpd();upSTB();upSB();upRange();renderSL();renderLL()}
+function updateAll(){pUpd();upSTB();upSB();upRange();renderSL();renderLL();updateClearBtnLabel()}
 // 論理状態(transport 内部の this.sectionIndex/this.measureIndex/this.ciIndex/this.ecIndex 等)と
 // 表示状態(curS/curM/isCi/isEc/ciBt/ecBt)は分離する。表示状態は音の再生時刻に同期して
 // queueVisual 経由でのみ更新し(applyPerformanceMainVisual/applyCountInVisual/applyEndCheckVisual/
@@ -1509,12 +1604,15 @@ $('rTSong').addEventListener('change',()=>{
 $('rTPos').addEventListener('change',()=>setRangeT(parseInt($('rTPos').value,10)));
 
 function renderSL(){
-  if(curPlaylistId){$('sList').innerHTML='';return}
+  // 曲編集タブが非表示のときは描画をスキップ(プレイリスト再生中の毎セクション再描画を避け、
+  // queueVisual による音との同期パフォーマンスに影響しないようにする)。表示時は switchTab が改めて描画する。
+  if(!$('tab-song').classList.contains('active'))return;
+  const list=esecs();
   $('sList').innerHTML='';
-  secs.forEach((s,i)=>{
+  list.forEach((s,i)=>{
     const c=document.createElement('div');
     let cls='sc';
-    if(pPlaying&&i===curS)cls+=' playing';
+    if(pPlaying&&!curPlaylistId&&i===curS)cls+=' playing';
     if(s.type==='end')cls+=' is-end';
     c.className=cls;
     if(s.type==='end'){
@@ -1539,106 +1637,124 @@ function renderSL(){
   });
   $('sList').querySelectorAll('input,select').forEach(el=>{
     el.addEventListener('change',e=>{
+      const arr=esecs();
       const i=parseInt(e.target.dataset.i,10),f=e.target.dataset.f;
       if(isNaN(i))return;
       if(pPlaying)pStop();
-      if(f==='name')secs[i].name=e.target.value;
-      else if(f==='startMeasure'){secs[i].startMeasure=clampInt(e.target.value,1,MAX_MEASURE,1);e.target.value=secs[i].startMeasure}
-      else if(f==='tempo'){const old=secs[i].tempo;secs[i].tempo=clampTempo(parseInt(e.target.value,10)||120);if(secs[i].tempoEnd==null||secs[i].tempoEnd===old)secs[i].tempoEnd=secs[i].tempo;e.target.value=secs[i].tempo}
-      else if(f==='tempoEnd'){secs[i].tempoEnd=e.target.value===''?secs[i].tempo:clampTempo(parseInt(e.target.value,10)||secs[i].tempo);e.target.value=secs[i].tempoEnd}
-      else if(f==='tempoCurve'){secs[i].tempoCurve=clampCurve(parseFloat(e.target.value));e.target.value=secs[i].tempoCurve;const cv=document.querySelector(`[data-cv="${i}"]`);if(cv)cv.textContent=secs[i].tempoCurve.toFixed(1);updateCurveSvg(i,secs[i].tempoCurve)}
-      else if(f==='tsCombo'){const [a,b]=parseTsValue(e.target.value);secs[i].timeSig=a;secs[i].beatUnit=b}
-      else if(f==='subdivision')secs[i].subdivision=e.target.value;
+      if(f==='name')arr[i].name=e.target.value;
+      else if(f==='startMeasure'){arr[i].startMeasure=clampInt(e.target.value,1,MAX_MEASURE,1);e.target.value=arr[i].startMeasure}
+      else if(f==='tempo'){const old=arr[i].tempo;arr[i].tempo=clampTempo(parseInt(e.target.value,10)||120);if(arr[i].tempoEnd==null||arr[i].tempoEnd===old)arr[i].tempoEnd=arr[i].tempo;e.target.value=arr[i].tempo}
+      else if(f==='tempoEnd'){arr[i].tempoEnd=e.target.value===''?arr[i].tempo:clampTempo(parseInt(e.target.value,10)||arr[i].tempo);e.target.value=arr[i].tempoEnd}
+      else if(f==='tempoCurve'){arr[i].tempoCurve=clampCurve(parseFloat(e.target.value));e.target.value=arr[i].tempoCurve;const cv=document.querySelector(`[data-cv="${i}"]`);if(cv)cv.textContent=arr[i].tempoCurve.toFixed(1);updateCurveSvg(i,arr[i].tempoCurve)}
+      else if(f==='tsCombo'){const [a,b]=parseTsValue(e.target.value);arr[i].timeSig=a;arr[i].beatUnit=b}
+      else if(f==='subdivision')arr[i].subdivision=e.target.value;
       else if(f==='measures'){
-        secs[i].measures=clampInt(e.target.value,0,MAX_MEASURES_COUNT,0);
-        e.target.value=secs[i].measures;
-        if(secs[i].measures<=0)secs[i].changeFrom=1;
-        else if((secs[i].changeFrom||1)>secs[i].measures)secs[i].changeFrom=secs[i].measures;
+        arr[i].measures=clampInt(e.target.value,0,MAX_MEASURES_COUNT,0);
+        e.target.value=arr[i].measures;
+        if(arr[i].measures<=0)arr[i].changeFrom=1;
+        else if((arr[i].changeFrom||1)>arr[i].measures)arr[i].changeFrom=arr[i].measures;
       }
       else if(f==='chgKind'){
-        const s=secs[i],v=e.target.value;
+        const s=arr[i],v=e.target.value;
         if(v==='none'){s.tempoEnd=s.tempo;s.changeFrom=1}
         else if(v==='accel'){if(!(s.tempoEnd>s.tempo))s.tempoEnd=clampTempo(s.tempo+10);if(!s.changeFrom)s.changeFrom=1}
         else if(v==='rit'){if(!(s.tempoEnd<s.tempo))s.tempoEnd=clampTempo(s.tempo-10);if(!s.changeFrom)s.changeFrom=1}
       }
       else if(f==='changeFromAbs'){
-        const s=secs[i],measures=Math.max(s.measures||0,1);
+        const s=arr[i],measures=Math.max(s.measures||0,1);
         const minAbs=s.startMeasure,maxAbs=s.startMeasure+measures-1;
         const abs=Math.max(minAbs,Math.min(maxAbs,parseInt(e.target.value,10)||minAbs));
         s.changeFrom=abs-s.startMeasure+1;
         e.target.value=abs;
       }
-      assignLabels();
+      assignLabels(arr);
       saveCur();
-      upRange();
+      if(!curPlaylistId)upRange();
       renderSL();
     });
     if(el.dataset.f==='tempoCurve')el.addEventListener('input',e=>{
+      const arr=esecs();
       const i=parseInt(e.target.dataset.i,10);
       if(isNaN(i))return;
-      secs[i].tempoCurve=clampCurve(parseFloat(e.target.value));
+      arr[i].tempoCurve=clampCurve(parseFloat(e.target.value));
       const cv=document.querySelector(`[data-cv="${i}"]`);
-      if(cv)cv.textContent=secs[i].tempoCurve.toFixed(1);
-      updateCurveSvg(i,secs[i].tempoCurve);
+      if(cv)cv.textContent=arr[i].tempoCurve.toFixed(1);
+      updateCurveSvg(i,arr[i].tempoCurve);
       saveCur();
     });
   });
   $('sList').querySelectorAll('.sdel').forEach(el=>{
-    el.addEventListener('click',e=>{if(pPlaying)pStop();secs.splice(parseInt(e.currentTarget.dataset.i,10),1);assignLabels();renderSL();upSB();saveCur();upRange()});
+    el.addEventListener('click',e=>{
+      const arr=esecs();
+      if(pPlaying)pStop();
+      arr.splice(parseInt(e.currentTarget.dataset.i,10),1);
+      assignLabels(arr);
+      renderSL();
+      if(!curPlaylistId)upSB();
+      saveCur();
+      if(!curPlaylistId)upRange();
+    });
   });
   $('sList').querySelectorAll('.mvb').forEach(el=>{
     el.addEventListener('click',()=>{
+      const arr=esecs();
       const i=parseInt(el.dataset.i,10),d=el.dataset.d;
-      if(secs[i].type==='end')return;
-      if(d==='up'&&i>0&&secs[i-1].type!=='end'){if(pPlaying)pStop();[secs[i-1],secs[i]]=[secs[i],secs[i-1]]}
-      else if(d==='dn'&&i<secs.length-1){
-        if(secs[i+1].type==='end')return;
+      if(arr[i].type==='end')return;
+      if(d==='up'&&i>0&&arr[i-1].type!=='end'){if(pPlaying)pStop();[arr[i-1],arr[i]]=[arr[i],arr[i-1]]}
+      else if(d==='dn'&&i<arr.length-1){
+        if(arr[i+1].type==='end')return;
         if(pPlaying)pStop();
-        [secs[i],secs[i+1]]=[secs[i+1],secs[i]];
+        [arr[i],arr[i+1]]=[arr[i+1],arr[i]];
       }else return;
-      assignLabels();
+      assignLabels(arr);
       saveCur();
-      upRange();
+      if(!curPlaylistId)upRange();
       renderSL();
     });
   });
 }
 $('addS').addEventListener('click',()=>{
-  if(secs.length>=MAX_SECTIONS){toast('セクションは200個までです');return}
+  const arr=esecs();
+  if(arr.length>=MAX_SECTIONS){toast('セクションは200個までです');return}
   if(pPlaying)pStop();
-  const endIdx=secs.findIndex(s=>s.type==='end');
-  const ins=endIdx>=0?endIdx:secs.length;
-  const prev=ins>0?secs[ins-1]:null;
+  const endIdx=arr.findIndex(s=>s.type==='end');
+  const ins=endIdx>=0?endIdx:arr.length;
+  const prev=ins>0?arr[ins-1]:null;
   const sm=prev?(prev.startMeasure+(prev.measures||4)):1;
   if(sm>MAX_MEASURE){toast('開始小節が上限を超えます');return}
   const t=prev?(prev.type==='main'?(prev.tempoEnd??prev.tempo):prev.tempo):mBpm;
   const ts=prev?prev.timeSig:mBeats;
   const tu=prev?prev.beatUnit:mBeatUnit;
-  secs.splice(ins,0,{type:'main',label:'',name:'',startMeasure:sm,measures:4,tempo:t,tempoEnd:t,tempoCurve:0,timeSig:ts,beatUnit:tu,subdivision:'none',changeFrom:1});
-  assignLabels();
+  arr.splice(ins,0,{type:'main',label:'',name:'',startMeasure:sm,measures:4,tempo:t,tempoEnd:t,tempoCurve:0,timeSig:ts,beatUnit:tu,subdivision:'none',changeFrom:1});
+  assignLabels(arr);
   renderSL();
   saveCur();
-  upRange();
-  rT=Math.max(rT,secs.length-1);
-  upRange();
+  if(!curPlaylistId){
+    upRange();
+    rT=Math.max(rT,secs.length-1);
+    upRange();
+  }
 });
 $('addE').addEventListener('click',()=>{
-  if(secs.some(s=>s.type==='end')){toast('エンドは1つのみ');return}
-  if(secs.length>=MAX_SECTIONS){toast('セクションは200個までです');return}
+  const arr=esecs();
+  if(arr.some(s=>s.type==='end')){toast('エンドは1つのみ');return}
+  if(arr.length>=MAX_SECTIONS){toast('セクションは200個までです');return}
   if(pPlaying)pStop();
-  const prev=secs.length>0?secs[secs.length-1]:null;
+  const prev=arr.length>0?arr[arr.length-1]:null;
   const sm=prev?(prev.startMeasure+(prev.measures||4)):1;
   if(sm>MAX_MEASURE){toast('開始小節が上限を超えます');return}
   const t=prev?(prev.type==='main'?(prev.tempoEnd??prev.tempo):prev.tempo):mBpm;
   const ts=prev?prev.timeSig:mBeats;
   const tu=prev?prev.beatUnit:mBeatUnit;
-  secs.push({type:'end',label:'End',name:'',startMeasure:sm,measures:1,tempo:t,timeSig:ts,beatUnit:tu});
-  assignLabels();
+  arr.push({type:'end',label:'End',name:'',startMeasure:sm,measures:1,tempo:t,timeSig:ts,beatUnit:tu});
+  assignLabels(arr);
   renderSL();
   saveCur();
-  upRange();
-  rT=secs.length-1;
-  upRange();
+  if(!curPlaylistId){
+    upRange();
+    rT=secs.length-1;
+    upRange();
+  }
 });
 
 let lastSaveFailAt=0;
@@ -1672,8 +1788,23 @@ function loadLib(){
     if(msgs.length)toast(msgs.join(' / '));
   }catch(e){lib=[]}
 }
-function saveCur(){if(!curSId)return true;const i=lib.findIndex(s=>s.id===curSId);if(i>=0){lib[i].title=sTitle;lib[i].sections=JSON.parse(JSON.stringify(secs))}return saveLibNotify(false)}
-function loadSong(s){if(pPlaying)pStop();resetTempoOffset();curPlaylistId=null;curSId=s.id;sTitle=s.title;$('sT').value=sTitle;secs=normalizeSections(JSON.parse(JSON.stringify(s.sections||[])));assignLabels();curS=-1;curM=0;rF=0;rT=Math.max(0,secs.length-1);updateAll()}
+function saveCur(){
+  if(curPlaylistId){
+    if(!editSongId)return true;
+    const i=lib.findIndex(s=>s.id===editSongId);
+    if(i>=0){
+      lib[i].title=sTitle;
+      lib[i].sections=JSON.parse(JSON.stringify(editSecs));
+      rebuildFlatSecsPreservingRange();
+    }
+    return saveLibNotify(false);
+  }
+  if(!curSId)return true;
+  const i=lib.findIndex(s=>s.id===curSId);
+  if(i>=0){lib[i].title=sTitle;lib[i].sections=JSON.parse(JSON.stringify(secs))}
+  return saveLibNotify(false);
+}
+function loadSong(s){rangeSelSeq++;if(pPlaying)pStop();resetTempoOffset();curPlaylistId=null;editSongId=null;editSecs=[];plEditReturnId=null;curSId=s.id;sTitle=s.title;$('sT').value=sTitle;secs=normalizeSections(JSON.parse(JSON.stringify(s.sections||[])));assignLabels();curS=-1;curM=0;rF=0;rT=Math.max(0,secs.length-1);updateAll()}
 
 // ===== Phase 8: プレイリスト =====
 function savePlaylists(){
@@ -1704,7 +1835,7 @@ function buildFlatSecs(pl){
   const flat=[];
   valid.forEach((v,i)=>{
     let arr=normalizeSections(v.song.sections).map(s=>({...s}));
-    let mi=0;arr.forEach(s=>{if(s.type==='end')s.label='End';else{s.label=secLabel(mi);mi++}});
+    let mi=0;arr.forEach((s,idx)=>{s._localIdx=idx;if(s.type==='end')s.label='End';else{s.label=secLabel(mi);mi++}});
     const isLast=i===valid.length-1;
     const link=v.item.link;
     if(!isLast){
@@ -1722,17 +1853,27 @@ function buildFlatSecs(pl){
         }
       }
     }
-    arr.forEach(s=>{s._pn=i+1;s._pTitle=v.song.title||'無題'});
+    arr.forEach(s=>{s._pn=i+1;s._pTitle=v.song.title||'無題';s._songId=v.song.id});
     flat.push(...arr);
   });
   return flat;
 }
 function loadPlaylist(pl){
+  rangeSelSeq++;
   if(pPlaying)pStop();
   resetTempoOffset();
   curSId=null;
+  // Phase 9 Codex指摘#1: editSongId/editSecs/sTitle(#sT)は必ず三者一致させる。
+  // 同一プレイリストの再読込で対象曲がまだ含まれるなら維持・復元し、そうでなければ揃えて初期化する。
+  const stillIn=curPlaylistId===pl.id&&editSongId&&(pl.items||[]).some(it=>it.songId===editSongId);
+  if(stillIn){
+    const s=lib.find(x=>x.id===editSongId);
+    sTitle=s?(s.title||''):'';
+    $('sT').value=sTitle;
+  }else{
+    editSongId=null;editSecs=[];plEditReturnId=null;sTitle='';$('sT').value='';
+  }
   curPlaylistId=pl.id;
-  sTitle='';
   secs=buildFlatSecs(pl);
   curS=-1;
   curM=0;
@@ -1742,11 +1883,67 @@ function loadPlaylist(pl){
   switchTab('perf');
 }
 function exitPlaylistMode(){
+  rangeSelSeq++;
   if(pPlaying)pStop();
   curPlaylistId=null;
   secs=[];
   sTitle='';
   $('sT').value='';
+  curS=-1;
+  curM=0;
+  editSongId=null;
+  editSecs=[];
+  plEditReturnId=null;
+  updateAll();
+}
+// Phase 9: プレイリスト内の指定曲を曲編集タブの編集対象にする(libから編集バッファへ複製)
+function selectEditSong(songId){
+  if(pPlaying)pStop();
+  const s=lib.find(x=>x.id===songId);
+  editSongId=s?s.id:null;
+  sTitle=s?(s.title||''):'';
+  $('sT').value=sTitle;
+  editSecs=normalizeSections(JSON.parse(JSON.stringify(s?(s.sections||[]):[])));
+  assignLabels(editSecs);
+  renderSL();
+  renderSongBar();
+}
+// 曲番号(pn)・曲内位置(_localIdx)で新しい flat secs 内の対応インデックスを探す。
+// 完全一致がなければ同じ曲内で最も近い位置、その曲自体が無ければ null。
+function remapPlaylistPosition(pn,localIdx){
+  const candidates=[];
+  // Phase 9 Codex指摘#3: gap/tapin(疑似セクション)は演奏区間の対象曲そのものではないため候補から除外する
+  secs.forEach((s,i)=>{if(s._pn===pn&&s.type!=='gap'&&s.type!=='tapin')candidates.push({s,i})});
+  if(candidates.length===0)return null;
+  const exact=candidates.find(o=>o.s._localIdx===localIdx);
+  if(exact)return exact.i;
+  candidates.sort((a,b)=>Math.abs((a.s._localIdx??0)-(localIdx??0))-Math.abs((b.s._localIdx??0)-(localIdx??0)));
+  return candidates[0].i;
+}
+// Phase 9 Codex指摘#3: 演奏セクション(main/end。gap/tapin以外)の最初/最後のインデックスを返す
+function firstPlayableSecIdx(){
+  for(let i=0;i<secs.length;i++)if(secs[i].type!=='gap'&&secs[i].type!=='tapin')return i;
+  return 0;
+}
+function lastPlayableSecIdx(){
+  for(let i=secs.length-1;i>=0;i--)if(secs[i].type!=='gap'&&secs[i].type!=='tapin')return i;
+  return Math.max(0,secs.length-1);
+}
+// 曲編集の保存後、プレイリストの平坦化 secs を作り直し、範囲(rF/rT)を曲番号+曲内位置で再マッピングする
+function rebuildFlatSecsPreservingRange(){
+  const pl=playlists.find(p=>p.id===curPlaylistId);
+  if(!pl)return;
+  if(pPlaying)pStop();
+  const oldF=secs[rF],oldT=secs[rT];
+  const fPn=oldF?oldF._pn:null,fIdx=oldF?oldF._localIdx:null;
+  const tPn=oldT?oldT._pn:null,tIdx=oldT?oldT._localIdx:null;
+  secs=buildFlatSecs(pl);
+  const nf=fPn!=null?remapPlaylistPosition(fPn,fIdx):null;
+  const nt=tPn!=null?remapPlaylistPosition(tPn,tIdx):null;
+  // Phase 9 Codex指摘#3: 対象曲に演奏セクションが無くなった(削除等)場合は全体の最初/最後の演奏セクションへフォールバック
+  rF=nf!=null?nf:firstPlayableSecIdx();
+  rT=nt!=null?nt:lastPlayableSecIdx();
+  if(rT<rF)rT=rF;
   curS=-1;
   curM=0;
   updateAll();
@@ -1901,7 +2098,8 @@ function renderPlEdit(){
       linkHtml=`<div class="sfs f1"><div class="fg"><label>つなぎ</label><select data-i="${i}" data-f="mode"><option value="direct"${it.link.mode==='direct'?' selected':''}>そのまま</option><option value="gap"${it.link.mode==='gap'?' selected':''}>無音→タップイン</option></select></div></div>
         <div class="sfs f2"${gapHidden?' style="display:none"':''}><div class="fg"><label>無音(拍)</label><input type="number" min="1" max="64" value="${it.link.gapBeats}" data-i="${i}" data-f="gapBeats"></div><div class="fg"><label>タップイン</label><select data-i="${i}" data-f="tapBeats">${tapOpts}</select></div></div>`;
     }
-    c.innerHTML=`<div class="sch"><div class="smv"><button class="mvb${upDis}" data-d="up" data-i="${i}">▲</button><button class="mvb${dnDis}" data-d="dn" data-i="${i}">▼</button></div><span class="lct" style="flex:1">${i+1}. ${escapeHtml(titleTxt)}</span><button class="sdel" data-i="${i}">×</button></div>${linkHtml}`;
+    const editBtn=song?`<button class="mvb" data-editsong="${it.songId}" title="曲を編集">✎</button>`:'';
+    c.innerHTML=`<div class="sch"><div class="smv"><button class="mvb${upDis}" data-d="up" data-i="${i}">▲</button><button class="mvb${dnDis}" data-d="dn" data-i="${i}">▼</button></div><span class="lct" style="flex:1">${i+1}. ${escapeHtml(titleTxt)}</span>${editBtn}<button class="sdel" data-i="${i}">×</button></div>${linkHtml}`;
     l.appendChild(c);
   });
   l.querySelectorAll('select,input').forEach(el=>{
@@ -1932,6 +2130,24 @@ function renderPlEdit(){
       renderPlEdit();
     });
   });
+  l.querySelectorAll('[data-editsong]').forEach(el=>{
+    el.addEventListener('click',e=>{
+      e.stopPropagation();
+      openSongEditFromPlaylist(el.dataset.editsong);
+    });
+  });
+}
+// Phase 9: プレイリスト編集の✎から曲編集タブへ。戻るボタンでプレイリスト編集に戻れるようにする
+function openSongEditFromPlaylist(songId){
+  const plId=curPlEditId;
+  if(!plId)return;
+  if(curPlaylistId!==plId){
+    const pl=playlists.find(x=>x.id===plId);
+    if(pl)loadPlaylist(pl);
+  }
+  plEditReturnId=plId;
+  selectEditSong(songId);
+  switchTab('song');
 }
 function openPlEdit(id){
   curPlEditId=id;
@@ -1996,7 +2212,6 @@ $('libToggle').querySelectorAll('.subbtn').forEach(b=>{
     if(libView==='playlist')renderPlL();
   });
 });
-$('songUnlockBtn').addEventListener('click',()=>{exitPlaylistMode();switchTab('song');toast('単曲モードに戻りました')});
 
 function renderLL(){
   const l=$('lList');
@@ -2033,6 +2248,11 @@ function renderLL(){
         if(!confirm('削除？'))return;
         lib=lib.filter(s=>s.id!==id);
         if(curSId===id){if(pPlaying)pStop();curSId=null;sTitle='';$('sT').value='';secs=[];updateAll()}
+        if(editSongId===id){editSongId=null;editSecs=[];sTitle='';$('sT').value='';renderSL();renderSongBar()}
+        if(curPlaylistId){
+          const pl=playlists.find(p=>p.id===curPlaylistId);
+          if(pl){if(pPlaying)pStop();secs=buildFlatSecs(pl);rF=0;rT=Math.max(0,secs.length-1);curS=-1;curM=0;updateAll()}
+        }
         saveLibNotify(false);
         renderLL();
       }
@@ -2048,11 +2268,16 @@ function switchTab(t){
   document.querySelectorAll('.tc').forEach(c=>c.classList.remove('active'));
   $('tab-'+t).classList.add('active');
   if(t==='song'){
-    const locked=!!curPlaylistId;
-    $('songEditWrap').style.display=locked?'none':'';
-    $('songLockMsg').style.display=locked?'':'none';
-    if(!locked)renderSL();
+    if(curPlaylistId&&(!editSongId||!lib.some(s=>s.id===editSongId))){
+      // Phase 9 Codex指摘#2: 曲の特定は songId で行う(削除済み曲を挟んでいても _pn は再生用の詰め番号のため pl.items を直接引かない)
+      const pl=playlists.find(p=>p.id===curPlaylistId);
+      const songId=(secs[curS]&&secs[curS]._songId)||(secs[rF]&&secs[rF]._songId)||(pl&&pl.items[0]?pl.items[0].songId:null);
+      if(songId)selectEditSong(songId);
+    }
+    renderSongBar();
+    renderSL();
   }
+  if(t!=='song')plEditReturnId=null;
   if(t==='lib'){
     renderLL();
     renderPlL();
@@ -2061,6 +2286,15 @@ function switchTab(t){
 $('newS').addEventListener('click',()=>{resetTempoOffset();saveCur();const id=genId('s');const s={id,title:'',sections:[]};lib.push(s);saveLibNotify(true);loadSong(s);switchTab('song')});
 $('svL').addEventListener('click',()=>{
   sTitle=$('sT').value;
+  if(curPlaylistId){
+    if(!editSongId)return;
+    saveCur();
+    const ok=saveLibNotify(true);
+    if(ok)toast('保存しました');
+    renderLL();
+    renderSongBar();
+    return;
+  }
   if(!curSId){curSId=genId('s');lib.push({id:curSId,title:sTitle,sections:JSON.parse(JSON.stringify(secs))})}
   else{
     const i=lib.findIndex(s=>s.id===curSId);
@@ -2074,14 +2308,89 @@ $('svL').addEventListener('click',()=>{
 
 function enc(s){return btoa(unescape(encodeURIComponent(JSON.stringify({v:5,title:s.title||'',sections:sectionsToWire(s.sections)}))))}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500)}
-$('exB').addEventListener('click',()=>{sTitle=$('sT').value;saveCur();const s=curSId?lib.find(x=>x.id===curSId):null;$('exA').value=enc(s||{title:sTitle,sections:secs});$('exM').classList.add('show')});
+// Phase 9 Codex指摘#5: 曲クリア直後の取り消しトースト(数秒表示、既存toast()とは別要素・別タイマーで干渉しない)
+let toastUTimer=null;
+function showUndoToast(msg,onUndo){
+  const el=$('toastU');
+  clearTimeout(toastUTimer);
+  $('toastUMsg').textContent=msg;
+  el.classList.add('show');
+  $('toastUBtn').onclick=()=>{clearTimeout(toastUTimer);el.classList.remove('show');onUndo()};
+  toastUTimer=setTimeout(()=>el.classList.remove('show'),5000);
+}
+// Phase 9 Codex指摘#5: クリアボタンの表示名(プレイリスト読込中は「曲の内容をクリア」、単曲時は従来どおり)
+function updateClearBtnLabel(){
+  const b=$('clB');
+  if(b)b.textContent=curPlaylistId?'✕ 曲の内容をクリア':'✕ クリア';
+}
+$('exB').addEventListener('click',()=>{
+  sTitle=$('sT').value;
+  saveCur();
+  const s=curPlaylistId?(editSongId?lib.find(x=>x.id===editSongId):null):(curSId?lib.find(x=>x.id===curSId):null);
+  $('exA').value=enc(s||{title:sTitle,sections:curPlaylistId?editSecs:secs});
+  $('exM').classList.add('show');
+});
 $('exCl').addEventListener('click',()=>$('exM').classList.remove('show'));
 $('exCp').addEventListener('click',()=>{$('exA').select();navigator.clipboard.writeText($('exA').value).then(()=>toast('コピーしました')).catch(()=>{document.execCommand('copy');toast('コピーしました')})});
 $('imB').addEventListener('click',()=>{$('imA').value='';$('imM').classList.add('show')});
 $('imCl').addEventListener('click',()=>$('imM').classList.remove('show'));
 $('imLd').addEventListener('click',()=>{doImport($('imA').value)});
-$('clB').addEventListener('click',()=>{if(!confirm('クリア？'))return;if(pPlaying)pStop();resetTempoOffset();sTitle='';$('sT').value='';secs=[];curS=-1;curM=0;updateAll();saveCur()});
-$('sT').addEventListener('input',e=>{sTitle=e.target.value;upSTB()});
+$('clB').addEventListener('click',()=>{
+  // Phase 9 Codex指摘#5: プレイリスト読込中の「クリア」は曲の内容(セクション)のみを空にする。タイトルは維持し、
+  // ライブラリ元曲・この曲を使う全プレイリストに影響する旨を確認文に明示。直後に取り消しトーストを出す。
+  if(curPlaylistId){
+    if(!editSongId)return;
+    const songName=sTitle||'無題';
+    if(!confirm(`「${songName}」の内容を空にします。ライブラリの元の曲が変更され、この曲を使うすべてのプレイリストに反映されます。続けますか？`))return;
+    if(pPlaying)pStop();
+    resetTempoOffset();
+    const backupSongId=editSongId;
+    const libIdx=lib.findIndex(x=>x.id===backupSongId);
+    const backupSections=libIdx>=0?JSON.parse(JSON.stringify(lib[libIdx].sections||[])):[];
+    const backupPlId=curPlaylistId,backupRF=rF,backupRT=rT;
+    editSecs=[];
+    curS=-1;curM=0;
+    renderSL();
+    renderSongBar();
+    saveCur();
+    const clearedSeq=rangeSelSeq;
+    showUndoToast(`「${songName}」の内容をクリアしました`,()=>{
+      const i2=lib.findIndex(x=>x.id===backupSongId);
+      if(i2>=0){
+        lib[i2].sections=backupSections;
+        saveLibNotify(false);
+        if(editSongId===backupSongId){
+          editSecs=normalizeSections(JSON.parse(JSON.stringify(backupSections)));
+          assignLabels(editSecs);
+          renderSL();
+        }
+        if(curPlaylistId){
+          // クリア後に範囲・プレイリストが変更されていなければ、クリア前の練習範囲に戻す
+          const untouched=curPlaylistId===backupPlId&&rangeSelSeq===clearedSeq;
+          rebuildFlatSecsPreservingRange();
+          if(untouched&&secs[backupRF]&&secs[backupRT]){
+            rF=backupRF;rT=backupRT;upRange();upSB();
+          }
+        }else if(curSId===backupSongId){
+          // クリア後に同じ曲を単曲で読み込んでいた場合は、単曲の編集・再生データも復元する
+          if(pPlaying)pStop();
+          secs=normalizeSections(JSON.parse(JSON.stringify(backupSections)));
+          assignLabels();
+          curS=-1;curM=0;rF=0;rT=Math.max(0,secs.length-1);
+          updateAll();
+        }
+        renderSongBar();
+      }
+      toast('元に戻しました');
+    });
+    return;
+  }
+  if(!confirm('クリア？'))return;
+  if(pPlaying)pStop();
+  resetTempoOffset();
+  sTitle='';$('sT').value='';secs=[];curS=-1;curM=0;updateAll();saveCur();
+});
+$('sT').addEventListener('input',e=>{sTitle=e.target.value;upSTB();if(!curPlaylistId)renderSongBar()});
 
 document.querySelectorAll('.tb').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.t)));
 document.addEventListener('keydown',e=>{
@@ -2094,7 +2403,11 @@ document.addEventListener('keydown',e=>{
   if(e.code==='ArrowUp'){e.preventDefault();if($('tab-metro').classList.contains('active'))mSetBpm(mBpm+1)}
   if(e.code==='ArrowDown'){e.preventDefault();if($('tab-metro').classList.contains('active'))mSetBpm(mBpm-1)}
 });
-['exM','imM','mSet','pSet'].forEach(id=>{$(id).addEventListener('click',e=>{if(e.target===$(id))$(id).classList.remove('show')})});
+['exM','imM','mSet','pSet','selSheet'].forEach(id=>{$(id).addEventListener('click',e=>{if(e.target===$(id))$(id).classList.remove('show')})});
+$('selCl').addEventListener('click',()=>$('selSheet').classList.remove('show'));
+$('selToggle').querySelectorAll('.subbtn').forEach(b=>{
+  b.addEventListener('click',()=>{selView=b.dataset.v;renderSelSheet()});
+});
 $('mGear').addEventListener('click',()=>$('mSet').classList.add('show'));
 $('mSetCl').addEventListener('click',()=>$('mSet').classList.remove('show'));
 $('pGear').addEventListener('click',()=>$('pSet').classList.add('show'));
