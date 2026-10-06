@@ -1,3 +1,10 @@
 .DS_Store
 *.icloud
 CODEX_PROMPT.md
+
+# 機密・環境固有(2026-10-07)
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+.vscode/
